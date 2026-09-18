@@ -254,7 +254,7 @@ def analyze_event_batch(raw_events):
     """Normalize one upload, cluster evidence-linked alerts, and emit independent incidents."""
     events = sorted(
         [normalize_event(event, index) for index, event in enumerate(raw_events)],
-        key=lambda event: minutes(event["time"]),
+        key=event_datetime,
     )
     if not events:
         return None
@@ -281,7 +281,7 @@ def analyze_event_batch(raw_events):
                 if neighbor not in visited:
                     visited.add(neighbor)
                     stack.append(neighbor)
-        components.append(sorted((by_id[item] for item in component_ids), key=lambda item: minutes(item["time"])))
+        components.append(sorted((by_id[item] for item in component_ids), key=event_datetime))
 
     incidents = []
     incident_event_ids = set()
@@ -290,6 +290,19 @@ def analyze_event_batch(raw_events):
         if candidate and candidate["classification"] == "confirmed_correlated_incident":
             incidents.append(candidate)
             incident_event_ids.update(event["id"] for event in component)
+
+    # A single high/critical security alert is not a correlated incident, but it must
+    # remain visible as a standalone reviewable threat signal instead of disappearing
+    # into generic uncorrelated telemetry.
+    for event in events:
+        if event["id"] in incident_event_ids or adjacency[event["id"]]:
+            continue
+        candidate = build_result([event])
+        if candidate and candidate["classification"] == "uncorrelated_high_risk_signal":
+            candidate["standalone"] = True
+            candidate["title"] = candidate["title"].replace("Uncorrelated High-Risk Alert — ", "Standalone High-Risk Alert — ")
+            incidents.append(candidate)
+            incident_event_ids.add(event["id"])
 
     uncorrelated = [event for event in events if event["id"] not in incident_event_ids]
     return {
