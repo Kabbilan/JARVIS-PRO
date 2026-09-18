@@ -42,6 +42,7 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historySummary, setHistorySummary] = useState({ total: 0, critical: 0, approved: 0, pending: 0, noise_reduction_percent: 0 });
+  const [reopenedIncident, setReopenedIncident] = useState(false);
 
   useEffect(() => {
     fetch(`${API}/api/scenarios`).then((response) => {
@@ -103,7 +104,7 @@ function App() {
       setError("Data Exfiltration scenario is waiting for the backend API. Add scenario ID: data-exfiltration.");
       return;
     }
-    setLoading(true); setIncident(null); setInvestigation(null); setReview(null); setError(""); setView("analysis");
+    setLoading(true); setIncident(null); setInvestigation(null); setReview(null); setError(""); setReopenedIncident(false); setView("analysis");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       let alerts = null;
@@ -167,14 +168,28 @@ function App() {
     } finally { setHistoryLoading(false); }
   }
 
+  async function openIncident(incidentId) {
+    setLoading(true); setIncident(null); setInvestigation(null); setError(""); setView("analysis");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const response = await fetch(`${API}/api/incidents/${incidentId}`);
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      setIncident(result); setInvestigation(result.investigation || null); setReopenedIncident(true); setApiOnline(true);
+    } catch {
+      setError("Incident details could not be loaded. Return to Incident History and retry."); setApiOnline(false);
+    } finally { setLoading(false); }
+  }
+
   async function downloadReport() {
     setReporting(true); setReportError("");
     try {
       const custom = Array.isArray(currentAlerts);
-      const response = await fetch(custom ? `${API}/api/report-alerts` : `${API}/api/report/${selected}`, {
-        method: custom ? "POST" : "GET",
-        headers: custom ? { "Content-Type": "application/json" } : undefined,
-        body: custom ? JSON.stringify({ alerts: currentAlerts }) : undefined,
+      const detailUrl = reopenedIncident ? `${API}/api/incidents/${incident.incident_id}/report` : null;
+      const response = await fetch(detailUrl || (custom ? `${API}/api/report-alerts` : `${API}/api/report/${selected}`), {
+        method: detailUrl ? "GET" : custom ? "POST" : "GET",
+        headers: !detailUrl && custom ? { "Content-Type": "application/json" } : undefined,
+        body: !detailUrl && custom ? JSON.stringify({ alerts: currentAlerts }) : undefined,
       });
       if (!response.ok) throw new Error();
       const url = window.URL.createObjectURL(await response.blob());
@@ -199,7 +214,7 @@ function App() {
     <main>
       <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : view === "analysis" ? "Security Analysis Workspace" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : view === "analysis" ? "Review correlated evidence, risk, AI findings, and response actions in one focused workspace." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
+      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} onOpen={openIncident} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -218,7 +233,7 @@ function App() {
       {loading && <section className="analysis-loader"><div className="loader-visual"><span className="orbit one" /><span className="orbit two" /><BrainCircuit /></div><div><p className="section-label">CORRELATION IN PROGRESS</p><h2>{loadingStages[loadingStage]}</h2><span>SentraPixel is connecting identity, device, IP, and event evidence.</span></div><div className="stage-track">{loadingStages.map((stage, index) => <span key={stage} className={index <= loadingStage ? "complete" : ""} />)}</div></section>}
 
       {incident && <>
-        <section className="metrics"><Metric label="Raw alerts" value={incident.metrics.raw_alerts} tone="blue" /><Metric label="Correlated" value={incident.metrics.correlated_alerts} tone="violet" /><Metric label="Incidents" value={incident.metrics.incidents} tone="red" /><Metric label="Noise reduced" value={incident.metrics.noise_reduced} tone="green" /></section>
+        <section className="metrics"><Metric label="Raw alerts" value={incident.metrics.raw_alerts} tone="blue" /><Metric label="Correlated" value={incident.metrics.correlated_alerts} tone="violet" /><Metric label="Confidence" value={`${incident.confidence ?? 70}%`} tone="red" caption={incident.confidence_basis || "evidence confidence"} /><Metric label="Noise reduced" value={incident.metrics.noise_reduced} tone="green" /></section>
         <section className={`incident-hero ${incident.severity}`}><div><div className="incident-meta"><span>{incident.incident_id}</span><span>{incident.status.replace("_", " ")}</span></div><h2>{incident.title}</h2><p>{incident.summary}</p></div><div className="risk-orb"><strong>{incident.score}</strong><span>RISK SCORE</span><em>{incident.severity}</em></div></section>
         <div className="content-grid">
           <section className="card attack-card"><CardTitle icon={<Clock3 />} label="ATTACK TIMELINE" title="Evidence-linked event sequence" /><div className="chain">{incident.events.map((event, index) => <div className="chain-row" key={event.id}><div className="time">{event.time}</div><div className={`node ${index === incident.events.length - 1 ? "last" : ""}`}><span>{index + 1}</span></div><div className="event"><div><b>{event.stage}</b><small>{event.id} · {event.source}</small></div><p>{event.label}</p><EvidenceLink links={incident.links} eventId={event.id} /></div></div>)}</div></section>
@@ -226,6 +241,7 @@ function App() {
             <section className="card"><CardTitle icon={<BrainCircuit />} label="INVESTIGATION SUMMARY" title="Evidence-grounded narrative" /><p className="narrative">{incident.summary}</p><div className="grounded"><CheckCircle2 /> Generated from correlated telemetry only</div></section>
             <section className="card risk-breakdown-card"><CardTitle icon={<FileSearch />} label="SEVERITY EVIDENCE" title="Risk score composition" />{(() => { const additions = incident.factors.reduce((sum, factor) => sum + factor.points, 0); const base = Math.max(0, incident.score - Math.min(additions, incident.score)); const factorEvidence = { "Suspicious successful login": "Detected suspicious_login event", "Privilege escalation": "Detected privilege_escalation event", "Sensitive resource accessed": "Detected sensitive_access event", "Large outbound data transfer": "Detected data_exfiltration event", "Security control evasion": "Detected defense_evasion event" }; const highestEvent = [...incident.events].sort((x, y) => (y.base_severity || 0) - (x.base_severity || 0))[0]; const parts = [{ label: "Base alert severity", points: base, evidence: highestEvent ? `${highestEvent.id}: ${highestEvent.label} — base severity ${highestEvent.base_severity}` : "Highest-severity correlated alert" }, ...incident.factors.map((factor) => ({ label: factor.label, points: Math.min(factor.points, Math.max(0, incident.score)), evidence: factorEvidence[factor.label] || "Detected correlated security factor" }))].filter((part) => part.points > 0); const total = parts.reduce((sum, part) => sum + part.points, 0) || 1; let cursor = 0; const stops = parts.map((part, index) => { const start = cursor; cursor += (part.points / total) * 100; return `var(--risk-c${index % 6}) ${start}% ${cursor}%`; }).join(", "); return <><div className="risk-breakdown"><div className="risk-donut factor-donut" style={{ background: `conic-gradient(${stops})` }}><div className="risk-donut-center"><strong>{incident.score}</strong><span>RISK SCORE</span></div></div><div className="risk-legend">{parts.map((part, index) => <div className="risk-legend-row" key={`${part.label}-${index}`}><span className={`risk-dot factor-dot-${index % 6}`} /><span><span className="risk-factor-name">{part.label}</span><small className="risk-evidence">{part.evidence}</small></span><b>{Math.round((part.points / total) * 100)}% <small>({part.points} pts)</small></b></div>)}</div></div><div className="risk-evidence-graph"><div className="risk-graph-title">Evidence → score contribution</div>{parts.map((part, index) => <div className="risk-graph-row" key={`graph-${part.label}-${index}`}><div className="risk-graph-meta"><span>{part.label}</span><b>{Math.round((part.points / total) * 100)}%</b></div><div className="risk-graph-track"><span className={`risk-graph-fill graph-fill-${index % 6}`} style={{ width: `${Math.max(3, (part.points / total) * 100)}%` }} /></div><small>{part.evidence}</small></div>)}</div><div className="alert-time-graph"><div className="risk-graph-title">Alert evidence timeline</div><div className="alert-time-axis">{incident.events.map((event, index) => <div className="alert-time-node" key={event.id}><span className="alert-time">{event.time}</span><span className={`alert-node severity-${event.base_severity >= 65 ? "high" : event.base_severity >= 35 ? "medium" : "low"}`} /><span className="alert-stage">{event.stage}</span><small>{event.id} · {event.label}</small>{index < incident.events.length - 1 && <span className="alert-connector" />}</div>)}</div></div><p className="risk-explain">Pie = score composition. Bars = factor contribution. Timeline = exact alert time and evidence used to reconstruct the incident.</p></>; })()}</section>
             <section className="card"><CardTitle icon={<Network />} label="SUSPICIOUS INDICATORS" title="Entities under investigation" /><div className="indicators">{incident.indicators.map((item) => <div key={item.type}><span>{item.type}</span><strong>{item.value}</strong><em>{item.status}</em></div>)}</div></section>
+            {incident.mitre_techniques?.length > 0 && <section className="card mitre-card"><CardTitle icon={<Radar />} label="MITRE ATT&CK" title="Observed adversary techniques" /><div className="mitre-list">{incident.mitre_techniques.map((technique) => <div key={technique.id}><span>{technique.id}</span><div><strong>{technique.name}</strong><small>{technique.tactic} · {technique.evidence}</small></div></div>)}</div></section>}
           </div>
         </div>
         <section className="card agent-card">
@@ -251,7 +267,7 @@ function EvidenceLink({ links, eventId }) {
   const link = links.find((item) => item.to === eventId);
   return link ? <em><Link2 size={12}/>{link.reason}</em> : null;
 }
-function IncidentHistory({ incidents, summary, loading, error, onRefresh, onBack }) {
+function IncidentHistory({ incidents, summary, loading, error, onRefresh, onBack, onOpen }) {
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState("all");
   const [status, setStatus] = useState("all");
@@ -264,9 +280,17 @@ function IncidentHistory({ incidents, summary, loading, error, onRefresh, onBack
   return <section className="history-panel">
     <div className="history-toolbar"><div><p className="section-label">CASE RECORDS</p><h2>Analyzed incidents</h2></div><div><button onClick={onBack}>New analysis</button><button className="refresh" onClick={onRefresh} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" /> : <Activity />} Refresh</button></div></div>
     {error && <div className="error" role="alert"><XCircle />{error}</div>}
-    {!loading && incidents.length > 0 && <><div className="history-metrics"><Metric label="Total cases" value={summary.total ?? incidents.length} tone="blue" caption="all recorded" /><Metric label="Critical" value={summary.critical ?? 0} tone="red" caption="needs attention" /><Metric label="Approved" value={summary.approved ?? 0} tone="green" caption="analyst reviewed" /><Metric label="Noise reduced" value={`${summary.noise_reduction_percent ?? 0}%`} tone="violet" caption="across alerts" /></div><div className="history-filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search incident or ID" /><select value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="awaiting_review">Awaiting review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><span>{filtered.length} of {incidents.length} cases</span></div></>}
-    {loading ? <div className="history-state"><LoaderCircle className="button-spinner" /><span>Loading incident history</span></div> : !incidents.length ? <div className="history-state"><FileSearch /><strong>No incidents recorded yet</strong><span>Run a demo scenario or upload security alerts to create the first incident.</span><button onClick={onBack}>Open Command Center</button></div> : !filtered.length ? <div className="history-state compact"><SearchCheck /><strong>No matching incidents</strong><span>Change or clear the current filters.</span></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Score</th><th>Alerts</th><th>Status</th><th>Created</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.incident_id}><td><strong>{item.title}</strong><small>{item.incident_id}</small></td><td><span className={`severity-pill ${item.severity}`}>{item.severity}</span></td><td className="score-cell">{item.score}</td><td>{item.metrics?.raw_alerts ?? "-"}</td><td><span className={`status-pill ${item.status}`}>{String(item.status || "open").replace("_", " ")}</span></td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : "Current session"}</td></tr>)}</tbody></table></div>}
+    {!loading && incidents.length > 0 && <><div className="history-metrics"><Metric label="Total cases" value={summary.total ?? incidents.length} tone="blue" caption="all recorded" /><Metric label="Critical" value={summary.critical ?? 0} tone="red" caption="needs attention" /><Metric label="Approved" value={summary.approved ?? 0} tone="green" caption="analyst reviewed" /><Metric label="Noise reduced" value={`${summary.noise_reduction_percent ?? 0}%`} tone="violet" caption="across alerts" /></div><SocAnalytics incidents={incidents} summary={summary} /><div className="history-filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search incident or ID" /><select value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="awaiting_review">Awaiting review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><span>{filtered.length} of {incidents.length} cases</span></div></>}
+    {loading ? <div className="history-state"><LoaderCircle className="button-spinner" /><span>Loading incident history</span></div> : !incidents.length ? <div className="history-state"><FileSearch /><strong>No incidents recorded yet</strong><span>Run a demo scenario or upload security alerts to create the first incident.</span><button onClick={onBack}>Open Command Center</button></div> : !filtered.length ? <div className="history-state compact"><SearchCheck /><strong>No matching incidents</strong><span>Change or clear the current filters.</span></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Score</th><th>Alerts</th><th>Status</th><th>Created</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.incident_id} className="clickable-row" tabIndex="0" onClick={() => onOpen(item.incident_id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") onOpen(item.incident_id); }}><td><strong>{item.title}</strong><small>{item.incident_id} · Open analysis →</small></td><td><span className={`severity-pill ${item.severity}`}>{item.severity}</span></td><td className="score-cell">{item.score}</td><td>{item.metrics?.raw_alerts ?? "-"}</td><td><span className={`status-pill ${item.status}`}>{String(item.status || "open").replace("_", " ")}</span></td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : "Current session"}</td></tr>)}</tbody></table></div>}
   </section>;
+}
+
+function SocAnalytics({ incidents, summary }) {
+  const counts = ["critical", "high", "medium", "low"].map((level) => ({ level, count: incidents.filter((item) => item.severity === level).length }));
+  const max = Math.max(1, ...counts.map((item) => item.count));
+  const reviewed = (summary.approved || 0) + incidents.filter((item) => item.status === "rejected").length;
+  const readiness = Math.round((reviewed / Math.max(1, incidents.length)) * 100);
+  return <section className="soc-analytics"><div><p className="section-label">SEVERITY DISTRIBUTION</p><div className="severity-bars">{counts.map((item) => <div key={item.level}><span>{item.level}</span><div><i className={item.level} style={{ width: `${(item.count / max) * 100}%` }} /></div><b>{item.count}</b></div>)}</div></div><div className="readiness-ring" style={{ "--readiness": `${readiness * 3.6}deg` }}><span><strong>{readiness}%</strong><small>REVIEWED</small></span></div><div className="analytics-copy"><p className="section-label">SOC OUTCOME</p><strong>{summary.noise_reduction_percent || 0}% alert noise reduced</strong><span>{summary.total_alerts || 0} alerts processed across {incidents.length} recorded investigations.</span></div></section>;
 }
 function LiveEvents({ onAnalyze }) {
   const [query, setQuery] = useState("");
