@@ -15,3 +15,13 @@
 .history-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px}.history-filters{display:grid;grid-template-columns:minmax(220px,1fr) 170px 170px auto;gap:9px;align-items:center;margin-top:14px}.history-filters input,.history-filters select{min-height:38px;padding:0 10px;border:1px solid #284157;border-radius:6px;background:#07131f;color:#b9cbd9;font-size:11px;outline:0}.history-filters input:focus,.history-filters select:focus{border-color:#3ecbed}.history-filters>span{color:#6e879d;font:9px 'Space Mono';white-space:nowrap}.history-state.compact{min-height:190px}
 @media(max-width:920px){.history-metrics{grid-template-columns:repeat(2,1fr)}.history-filters{grid-template-columns:1fr 1fr}.history-filters input{grid-column:1/-1}}
 @media(max-width:520px){.history-metrics{grid-template-columns:1fr 1fr;gap:8px}.history-filters{grid-template-columns:1fr}.history-filters input{grid-column:auto}}
+
+@media(max-width:760px){
+  aside{overflow-x:auto;gap:12px}
+  aside nav{display:flex;gap:6px;margin-left:auto}
+  aside nav button{min-width:42px;padding:9px;justify-content:center}
+  aside nav button svg{width:18px}
+  aside nav button{font-size:0}
+  .history-toolbar .api-label{display:flex}
+  .incident-table{min-width:680px}
+}
