@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any, Literal
-from ai_agent import fallback_investigation, generate_investigation
+from ai_agent import fallback_investigation, fallback_response_plan, generate_agent_pipeline, generate_investigation, verify_agent_outputs
 from correlation import analyze_events, analyze_scenario, get_scenarios
 from database import get_incident, incident_summary, list_incidents, save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
@@ -64,6 +64,20 @@ async def investigation_with_timeout(incident: dict[str, Any]) -> dict[str, Any]
         return fallback_investigation(incident)
 
 
+async def agent_pipeline_with_timeout(incident: dict[str, Any]) -> dict[str, Any]:
+    timeout_seconds = float(os.getenv("AGENT_PIPELINE_DEADLINE_SECONDS", "22"))
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(generate_agent_pipeline, incident), timeout=timeout_seconds)
+    except TimeoutError:
+        investigation = fallback_investigation(incident)
+        response_plan = fallback_response_plan(incident)
+        return {
+            "investigation": investigation,
+            "response_plan": response_plan,
+            "verification": verify_agent_outputs(incident, investigation, response_plan),
+        }
+
+
 @app.get("/api/health")
 def health():
     return {"status": "online", "service": "SentraPixel correlation engine", "version": "0.6.0"}
@@ -93,7 +107,10 @@ async def incident_report(incident_id: str):
     incident = get_incident(incident_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
-    investigation = incident.get("investigation") or await investigation_with_timeout(incident)
+    investigation = incident.get("investigation")
+    if not investigation:
+        pipeline = await agent_pipeline_with_timeout(incident)
+        investigation = {**pipeline["investigation"], "response_plan": pipeline["response_plan"], "verification": pipeline["verification"]}
     pdf = generate_incident_report(incident, investigation)
     return Response(
         content=pdf,
@@ -126,9 +143,9 @@ async def investigate(scenario_id: str):
     if not incident:
         raise HTTPException(status_code=404, detail="Scenario not found")
     save_incident(incident)
-    investigation = await investigation_with_timeout(incident)
-    save_investigation(incident["incident_id"], investigation)
-    return {"incident_id": incident["incident_id"], "investigation": investigation}
+    pipeline = await agent_pipeline_with_timeout(incident)
+    save_investigation(incident["incident_id"], {**pipeline["investigation"], "response_plan": pipeline["response_plan"], "verification": pipeline["verification"]})
+    return {"incident_id": incident["incident_id"], **pipeline}
 
 
 @app.post("/api/investigate-alerts")
@@ -137,9 +154,9 @@ async def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
     save_incident(incident)
-    investigation = await investigation_with_timeout(incident)
-    save_investigation(incident["incident_id"], investigation)
-    return {"incident_id": incident["incident_id"], "investigation": investigation}
+    pipeline = await agent_pipeline_with_timeout(incident)
+    save_investigation(incident["incident_id"], {**pipeline["investigation"], "response_plan": pipeline["response_plan"], "verification": pipeline["verification"]})
+    return {"incident_id": incident["incident_id"], **pipeline}
 
 
 @app.post("/api/review")
@@ -160,7 +177,8 @@ async def report(scenario_id: str):
     incident = analyze_scenario(scenario_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    investigation = await investigation_with_timeout(incident)
+    pipeline = await agent_pipeline_with_timeout(incident)
+    investigation = {**pipeline["investigation"], "response_plan": pipeline["response_plan"], "verification": pipeline["verification"]}
     pdf = generate_incident_report(incident, investigation)
     filename = f"SentraPixel-{incident['incident_id']}.pdf"
     return Response(
@@ -175,7 +193,8 @@ async def report_raw_alerts(payload: AnalyzeAlertsRequest):
     incident = analyze_events([alert.as_event() for alert in payload.alerts])
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
-    investigation = await investigation_with_timeout(incident)
+    pipeline = await agent_pipeline_with_timeout(incident)
+    investigation = {**pipeline["investigation"], "response_plan": pipeline["response_plan"], "verification": pipeline["verification"]}
     pdf = generate_incident_report(incident, investigation)
     filename = f"SentraPixel-{incident['incident_id']}.pdf"
     return Response(
