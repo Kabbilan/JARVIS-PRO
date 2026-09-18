@@ -79,6 +79,26 @@ def generate_incident_report(
     for item in investigation.get("next_steps", []):
         story.append(Paragraph(f"• {item}", styles["BodyText"]))
 
+    response_plan = investigation.get("response_plan") or {}
+    if response_plan:
+        story.extend([Spacer(1, 10), Paragraph("Response Planner Agent", styles["Heading2"])])
+        story.append(Paragraph(f"<b>Priority:</b> {response_plan.get('priority', 'unknown').upper()}", styles["BodyText"]))
+        for item in response_plan.get("immediate_actions", []):
+            story.append(Paragraph(f"• {item}", styles["BodyText"]))
+
+    verification = investigation.get("verification") or {}
+    if verification:
+        story.extend([Spacer(1, 10), Paragraph("Independent Verification", styles["Heading2"])])
+        story.append(Paragraph(
+            f"<b>Verdict:</b> {verification.get('verdict', 'needs_review').replace('_', ' ').upper()} — "
+            f"{verification.get('checks_passed', 0)}/{verification.get('checks_total', 0)} checks passed",
+            styles["BodyText"],
+        ))
+        for item in verification.get("supported_checks", []):
+            story.append(Paragraph(f"✓ {item}", styles["BodyText"]))
+        for item in verification.get("warnings", []):
+            story.append(Paragraph(f"⚠ {item}", styles["BodyText"]))
+
     story.extend([Spacer(1, 10), Paragraph("Response Actions", styles["Heading2"])])
     for action in incident.get("recommended_actions", []):
         story.append(Paragraph(f"• {action}", styles["BodyText"]))
