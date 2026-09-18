@@ -1,4 +1,6 @@
-import os\n\nfrom fastapi import FastAPI, HTTPException
+import os
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any, Literal
@@ -10,9 +12,15 @@ from fastapi.responses import Response
 
 app = FastAPI(title="SentraPixel SOC API", version="0.5.0")
 
+frontend_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+frontend_origin = os.getenv("FRONTEND_ORIGIN", "").strip().rstrip("/")
+if frontend_origin:
+    frontend_origins.append(frontend_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=frontend_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
