@@ -1,206 +1,131 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Any
-import re
+import hashlib, json, re
 
 ALIASES = {
-    "timestamp": ("timestamp", "event_time", "datetime", "time"),
-    "id": ("id", "event_id", "alert_id"),
-    "type": ("type", "action", "event_type", "category"),
-    "ip": ("ip", "source_ip", "src_ip"),
-    "resource": ("resource", "destination_ip", "dst_ip", "destination"),
-    "user": ("user", "username", "account"),
-    "device": ("device", "hostname", "host", "endpoint"),
-    "label": ("label", "message", "description"),
-    "base_severity": ("base_severity", "severity", "priority"),
-    "source": ("source", "product", "vendor"),
+    "timestamp": ("timestamp","event_time","datetime","time","date","created_at","created","occurred_at","observed_at","first_seen","last_seen","start_time"),
+    "id": ("id","event_id","alert_id","incident_id","uuid","uid","eventid"),
+    "type": ("type","action","event_type","category","event_name","name","rule_name","signature","alert_type","threat_type"),
+    "ip": ("ip","source_ip","src_ip","client_ip","remote_ip","ip_address"),
+    "resource": ("resource","destination_ip","dst_ip","destination","target","target_ip","url","domain","file"),
+    "user": ("user","username","account","principal","actor","email"),
+    "device": ("device","hostname","host","endpoint","computer","machine","asset"),
+    "label": ("label","message","description","title","summary","reason"),
+    "base_severity": ("base_severity","severity","priority","risk","risk_score","score"),
+    "source": ("source","product","vendor","sensor","provider","service"),
 }
-
-KNOWN_TYPES = {
-    "failed_login", "suspicious_login", "privilege_escalation", "sensitive_access",
-    "data_exfiltration", "defense_evasion", "normal_login", "normal_activity",
-    "malware", "c2_connection",
+KNOWN_TYPES={"failed_login","suspicious_login","privilege_escalation","sensitive_access","data_exfiltration","defense_evasion","normal_login","normal_activity","malware","c2_connection"}
+SEVERITY_WORDS={"informational":5,"info":5,"low":20,"medium":50,"moderate":50,"high":75,"critical":95}
+PHRASES={
+ "failed login":"failed_login","login failed":"failed_login","authentication failure":"failed_login","brute force":"failed_login",
+ "suspicious login":"suspicious_login","impossible travel":"suspicious_login","anomalous login":"suspicious_login",
+ "privilege escalation":"privilege_escalation","admin privilege":"privilege_escalation",
+ "sensitive access":"sensitive_access","sensitive file":"sensitive_access",
+ "data exfiltration":"data_exfiltration","exfiltration":"data_exfiltration","large outbound":"data_exfiltration",
+ "defense evasion":"defense_evasion","disable antivirus":"defense_evasion","disable security":"defense_evasion",
+ "malware":"malware","ransomware":"malware","trojan":"malware","malicious file":"malware",
+ "command and control":"c2_connection","c2":"c2_connection","outbound traffic":"c2_connection","beacon":"c2_connection",
+ "normal login":"normal_login","successful login":"normal_login","benign":"normal_activity","normal activity":"normal_activity",
 }
+class UnsupportedAlertSchema(ValueError): pass
 
-SEVERITY_WORDS = {"informational": 5, "info": 5, "low": 20, "medium": 50, "moderate": 50, "high": 75, "critical": 95}
+def _pick(a,k):
+    lower={str(x).lower():x for x in a}
+    for alias in ALIASES[k]:
+        if alias in lower:
+            real=lower[alias]; v=a[real]
+            if v not in (None,""): return v,real
+    return None,None
 
+def _walk(v):
+    if isinstance(v,dict):
+        yield v
+        for x in v.values(): yield from _walk(x)
+    elif isinstance(v,list):
+        for x in v: yield from _walk(x)
 
-class UnsupportedAlertSchema(ValueError):
-    pass
-
-
-def _pick(alert: dict[str, Any], canonical: str):
-    for key in ALIASES[canonical]:
-        if key in alert and alert[key] not in (None, ""):
-            return alert[key], key
-    return None, None
-
-
-def _parse_timestamp(value: Any) -> datetime:
-    text = str(value).strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
+def _parse_time(v):
+    s=str(v).strip()
+    if s.endswith("Z"): s=s[:-1]+"+00:00"
+    for parser in (lambda:datetime.fromisoformat(s),lambda:datetime.strptime(s,"%Y-%m-%d %H:%M:%S"),lambda:datetime.strptime(s,"%Y/%m/%d %H:%M:%S")):
         try:
-            parsed = datetime.strptime(text, "%H:%M")
-        except ValueError as exc:
-            raise UnsupportedAlertSchema("Valid JSON, but unsupported security-alert schema. Timestamp format is not recognized.") from exc
-        now = datetime.now(ZoneInfo("Asia/Kolkata"))
-        parsed = parsed.replace(year=now.year, month=now.month, day=now.day, tzinfo=ZoneInfo("Asia/Kolkata"))
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Kolkata"))
-    return parsed
+            d=parser()
+            return d.replace(tzinfo=ZoneInfo("Asia/Kolkata")) if d.tzinfo is None else d
+        except ValueError: pass
+    return None
 
+def _sev(v):
+    if v is None:return None
+    if isinstance(v,str) and not v.strip().replace(".","",1).isdigit(): return SEVERITY_WORDS.get(v.lower().strip())
+    try:return max(0,min(int(float(v)),100))
+    except:return None
 
-def _severity(value: Any):
-    if value is None:
-        return None
-    if isinstance(value, str) and not value.strip().isdigit():
-        return SEVERITY_WORDS.get(value.strip().lower())
-    try:
-        return max(0, min(int(value), 100))
-    except (TypeError, ValueError):
-        return None
+def _infer_type(a):
+    v,k=_pick(a,"type")
+    text=" ".join(str(x) for x in [v,a.get("title"),a.get("message"),a.get("description"),a.get("summary"),a.get("reason"),a.get("signature"),a.get("rule_name")] if x).lower()
+    direct=str(v).strip().lower().replace(" ","_").replace("-","_") if v is not None else ""
+    if direct in KNOWN_TYPES:return direct,k
+    for phrase,t in PHRASES.items():
+        if phrase in text:return t,k or "semantic_text"
+    # Unknown security events remain analyzable without pretending they are a known attack.
+    security_keys={"severity","priority","risk","risk_score","source_ip","src_ip","destination_ip","dst_ip","hostname","user","username","event_id","alert_id","incident_id","rule_name","signature"}
+    if any(str(x).lower() in security_keys for x in a): return "normal_activity",k or "security_context"
+    return None,None
 
+def _nearest_time(obj, root):
+    v,k=_pick(obj,"timestamp")
+    d=_parse_time(v) if v is not None else None
+    if d:return d,k,False
+    if isinstance(root,dict):
+        for x in _walk(root):
+            v2,k2=_pick(x,"timestamp")
+            d2=_parse_time(v2) if v2 is not None else None
+            if d2:return d2,k2,True
+    return datetime.now(timezone.utc),None,True
 
-def normalize_uploaded_alert(alert: dict[str, Any], index: int = 0):
-    if not isinstance(alert, dict):
-        raise UnsupportedAlertSchema("Valid JSON, but unsupported security-alert schema. Alerts must be JSON objects.")
+def normalize_uploaded_alert(a,index=0,root=None):
+    if not isinstance(a,dict):raise UnsupportedAlertSchema("Alert is not an object")
+    t,tk=_infer_type(a)
+    if not t:raise UnsupportedAlertSchema("No security meaning found")
+    d,timekey,inferred=_nearest_time(a,root if root is not None else a)
+    canonical=d.astimezone(timezone.utc); display=canonical.astimezone(ZoneInfo("Asia/Kolkata"))
+    r={"timestamp":canonical.isoformat(),"time":display.strftime("%H:%M"),"type":t}
+    m={"type":tk}
+    if timekey:m["timestamp"]=timekey
+    for field in ("id","ip","resource","user","device","label","base_severity","source"):
+        v,k=_pick(a,field)
+        if v is not None:
+            r[field]=_sev(v) if field=="base_severity" else str(v);m[field]=k
+    if "id" not in r:
+        raw=json.dumps(a,sort_keys=True,default=str).encode();r["id"]="AUTO-"+hashlib.sha1(raw).hexdigest()[:10].upper()
+    r.setdefault("source","Unknown");r.setdefault("label",str(_pick(a,"label")[0] or t.replace("_"," ").title()))
+    r.setdefault("user","unknown");r.setdefault("ip","unknown");r.setdefault("device","unknown");r.setdefault("resource","Unknown")
+    if inferred:r["timestamp_inferred"]=True
+    if tk in ("semantic_text","security_context") or t=="normal_activity" and _pick(a,"type")[0] not in ("normal_activity","normal_login"):r["type_inferred"]=True
+    return r,m
 
-    timestamp_value, timestamp_key = _pick(alert, "timestamp")
-    type_value, type_key = _pick(alert, "type")
-    if timestamp_value is None or type_value is None:
-        raise UnsupportedAlertSchema("Valid JSON, but unsupported security-alert schema. No recognizable timestamp/type fields found.")
-
-    event_type = str(type_value).strip().lower().replace(" ", "_").replace("-", "_")
-    if event_type not in KNOWN_TYPES:
-        raise UnsupportedAlertSchema(f"Valid JSON, but unsupported security-alert schema. Security event type '{event_type}' cannot be inferred safely.")
-
-    parsed = _parse_timestamp(timestamp_value)
-    canonical = parsed.astimezone(timezone.utc)
-    display = canonical.astimezone(ZoneInfo("Asia/Kolkata"))
-
-    result = {
-        "timestamp": canonical.isoformat(),
-        "time": display.strftime("%H:%M"),
-        "type": event_type,
-    }
-    mappings = {"timestamp": timestamp_key, "type": type_key}
-    for field in ("id", "ip", "resource", "user", "device", "label", "base_severity", "source"):
-        value, source_key = _pick(alert, field)
-        if value is not None:
-            result[field] = _severity(value) if field == "base_severity" else str(value)
-            mappings[field] = source_key
-
-    result.setdefault("id", f"RAW-{index + 1:03d}")
-    result.setdefault("source", "Unknown")
-    result.setdefault("label", event_type.replace("_", " ").title())
-    result.setdefault("user", "unknown")
-    result.setdefault("ip", "unknown")
-    result.setdefault("device", "unknown")
-    result.setdefault("resource", "Unknown")
-    return result, mappings
-
-
-def _walk_objects(value):
-    if isinstance(value, dict):
-        yield value
-        for child in value.values():
-            yield from _walk_objects(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from _walk_objects(child)
-
-
-def _report_incidents(payload):
-    if not isinstance(payload, dict):
-        return []
-    report = payload.get("soc_report", payload)
-    if not isinstance(report, dict):
-        return []
-    report_time = report.get("timestamp") or report.get("datetime") or report.get("event_time")
-    incidents = report.get("active_incidents") or report.get("incidents")
-    if not report_time or not isinstance(incidents, list):
-        return []
-    converted = []
-    for item in incidents:
-        if not isinstance(item, dict):
-            continue
-        title = str(item.get("title") or item.get("message") or item.get("description") or "").lower()
-        # Only map explicit, security-meaningful phrases; never invent an attack type from arbitrary text.
-        phrase_map = {
-            "failed login": "failed_login", "brute force": "failed_login",
-            "suspicious login": "suspicious_login", "impossible travel": "suspicious_login",
-            "privilege escalation": "privilege_escalation",
-            "data exfiltration": "data_exfiltration", "exfiltration": "data_exfiltration",
-            "outbound traffic": "c2_connection", "command and control": "c2_connection",
-            "malware": "malware", "ransomware": "malware",
-            "defense evasion": "defense_evasion",
-        }
-        event_type = next((kind for phrase, kind in phrase_map.items() if phrase in title), None)
-        if not event_type:
-            continue
-        converted.append({
-            "timestamp": item.get("timestamp") or report_time,
-            "event_id": item.get("id") or item.get("event_id"),
-            "action": event_type,
-            "severity": item.get("severity"),
-            "message": item.get("title") or item.get("message"),
-            "source_ip": item.get("source_ip") or item.get("src_ip"),
-            "username": item.get("user") or item.get("username"),
-            "hostname": item.get("device") or item.get("hostname"),
-        })
-    return converted
-
-
-def normalize_upload(payload: Any):
-    # First handle known wrappers and raw arrays/objects.
-    if isinstance(payload, list):
-        candidates = payload
-    elif isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
-        candidates = payload["alerts"]
-    else:
-        candidates = [payload] if isinstance(payload, dict) else []
-
-    normalized, feedback, rejected = [], {}, []
-    for index, alert in enumerate(candidates):
+def normalize_upload(payload:Any):
+    if not isinstance(payload,(dict,list)):raise UnsupportedAlertSchema("Valid JSON, but it does not contain objects that can be normalized.")
+    objects=list(_walk(payload))
+    # Prefer leaf/event objects, avoiding report/container dictionaries when children contain events.
+    candidates=[]
+    for o in objects:
+        child_dicts=[x for v in o.values() if isinstance(v,(dict,list)) for x in _walk(v)]
+        has_event_child=any(_infer_type(x)[0] for x in child_dicts)
+        if not has_event_child:candidates.append(o)
+    normalized=[];feedback={};seen=set()
+    for o in candidates:
         try:
-            event, mappings = normalize_uploaded_alert(alert, index)
-            normalized.append(event)
-            for canonical, source_key in mappings.items():
-                if source_key:
-                    feedback[f"{source_key} → {canonical}"] = True
-        except UnsupportedAlertSchema:
-            rejected.append(alert)
-
-    # Generic nested JSON: discover embedded alert-like objects anywhere in the document.
-    if not normalized and isinstance(payload, (dict, list)):
-        for obj in _walk_objects(payload):
-            try:
-                event, mappings = normalize_uploaded_alert(obj, len(normalized))
-                normalized.append(event)
-                for canonical, source_key in mappings.items():
-                    if source_key:
-                        feedback[f"{source_key} → {canonical}"] = True
-            except UnsupportedAlertSchema:
-                pass
-
-    # SOC reports/incident summaries: safely adapt recognized incident semantics into events.
+            event,m=normalize_uploaded_alert(o,len(normalized),payload)
+            if event["id"] in seen:continue
+            seen.add(event["id"]);normalized.append(event)
+            for canonical,src in m.items():
+                if src:feedback[f"{src} → {canonical}"]=True
+        except UnsupportedAlertSchema:pass
     if not normalized:
-        for alert in _report_incidents(payload):
-            event, mappings = normalize_uploaded_alert(alert, len(normalized))
-            normalized.append(event)
-            for canonical, source_key in mappings.items():
-                if source_key:
-                    feedback[f"{source_key} → {canonical}"] = True
-        if normalized:
-            feedback["SOC report → security events"] = True
-
-    if not normalized:
-        raise UnsupportedAlertSchema("Valid JSON, but no safely inferable security events were found. SentraPixel searched nested objects, common wrappers, aliases, and SOC incident summaries.")
-
-    if len(normalized) > 500:
-        raise UnsupportedAlertSchema("Security alert upload must contain between 1 and 500 alerts.")
-    return normalized, list(feedback)
+        raise UnsupportedAlertSchema("Valid JSON, but no security-relevant alert/event objects could be identified.")
+    if len(normalized)>500:raise UnsupportedAlertSchema("Security alert upload must contain between 1 and 500 alerts.")
+    if any(x.get("timestamp_inferred") for x in normalized):feedback["missing timestamp → ingestion time/report timestamp"]=True
+    if any(x.get("type_inferred") for x in normalized):feedback["unknown event names → preserved as unclassified security activity"]=True
+    return normalized,list(feedback)
