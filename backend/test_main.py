@@ -38,6 +38,13 @@ def test_review_approved(monkeypatch):
     assert saved == {"incident_id": "INC-TEST", "decision": "approved"}
 
 
+def test_review_save_failure_returns_500(monkeypatch):
+    monkeypatch.setattr(main, "save_review", lambda incident_id, decision: False)
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved")
+    assert response.status_code == 500
+    assert response.json()["detail"] == "Review could not be saved"
+
+
 def test_incident_history_shape(monkeypatch):
     monkeypatch.setattr(main, "list_incidents", lambda: [])
     response = client.get("/api/incidents")
@@ -45,6 +52,31 @@ def test_incident_history_shape(monkeypatch):
     body = response.json()
     assert body["incidents"] == []
     assert body["summary"]["total"] == 0
+
+
+def test_custom_investigation_persists_incident_first(monkeypatch):
+    calls = []
+    incident = {
+        "incident_id": "INC-CUSTOM",
+        "title": "Custom Incident",
+        "severity": "high",
+        "score": 80,
+        "status": "awaiting_review",
+        "summary": "test",
+        "events": [],
+        "links": [],
+        "factors": [],
+        "indicators": [],
+        "recommended_actions": [],
+        "metrics": {"incidents": 1},
+    }
+    monkeypatch.setattr(main, "analyze_events", lambda alerts: incident)
+    monkeypatch.setattr(main, "save_incident", lambda value: calls.append(("incident", value["incident_id"])) or True)
+    monkeypatch.setattr(main, "investigation_with_timeout", lambda value: __import__("asyncio").sleep(0, result={"provider": "fallback", "narrative": "ok", "evidence": [], "next_steps": []}))
+    monkeypatch.setattr(main, "save_investigation", lambda incident_id, result: calls.append(("investigation", incident_id)) or True)
+    response = client.post("/api/investigate-alerts", json={"alerts": [{"time": "09:00", "type": "failed_login"}]})
+    assert response.status_code == 200
+    assert calls == [("incident", "INC-CUSTOM"), ("investigation", "INC-CUSTOM")]
 
 
 def test_report_is_pdf(monkeypatch):
