@@ -337,16 +337,22 @@ function BatchAnalysisSummary({ batch, onOpen, onBack }) {
     <div className="batch-toolbar"><div><p className="section-label">CUSTOM JSON / CORRELATION RESULT</p><h2>Independent incidents detected</h2><p>{batch.batch_id} · Disconnected alerts are not allowed to influence another incident.</p></div><button onClick={onBack}><ArrowLeft /> New upload</button></div>
     <div className="batch-metrics">
       <Metric label="Raw Alerts" value={batch.raw_alerts} tone="blue" caption="uploaded telemetry" />
-      <Metric label="Incidents Found" value={batch.incident_count} tone="red" caption="independent clusters" />
+      <Metric label="Incidents Found" value={batch.incident_count} tone="red" caption="correlated clusters" />
+      <Metric label="Standalone Threats" value={batch.standalone_count || 0} tone="red" caption="high-risk signals" />
       <Metric label="Correlated Alerts" value={batch.correlated_alerts} tone="violet" caption="inside incidents" />
       <Metric label="Uncorrelated Alerts" value={batch.uncorrelated_alerts} tone="green" caption="kept separate" />
     </div>
+    {batch.standalone_threats?.length > 0 && <><p className="section-label">STANDALONE THREATS</p><div className="batch-incidents">{batch.standalone_threats.map((item) => <button className="batch-incident-card standalone-threat-card" key={item.incident_id} onClick={() => onOpen(item.incident_id)}>
+      <div><span className="batch-id">{item.incident_id}</span><span className={`severity-pill ${item.severity}`}>{item.severity}</span></div>
+      <h3>{item.title}</h3><p>{item.classification_reason}</p>
+      <footer><span><AlertTriangle /> Standalone threat · {item.events?.[0]?.type?.replaceAll("_"," ")}</span><span>Risk {item.score} · Confidence {item.confidence}%</span><ChevronRight /></footer>
+    </button>)}</div></>}
     {batch.incidents?.length ? <div className="batch-incidents">{batch.incidents.map((item) => <button className="batch-incident-card" key={item.incident_id} onClick={() => onOpen(item.incident_id)}>
       <div><span className="batch-id">{item.incident_id}</span><span className={`severity-pill ${item.severity}`}>{item.severity}</span></div>
       <h3>{item.title}</h3>
       <p>{item.classification_reason}</p>
       <footer><span><Network /> {item.metrics?.correlated_alerts || item.events?.length || 0} correlated alerts</span><span>Risk {item.score} · Confidence {item.confidence}%</span><ChevronRight /></footer>
-    </button>)}</div> : <div className="history-state"><ShieldCheck /><strong>No correlated malicious incidents found</strong><span>{batch.uncorrelated_alerts} alerts remain uncorrelated and were not forced into an incident.</span></div>}
+    </button>)}</div> : !batch.standalone_threats?.length && <div className="history-state"><ShieldCheck /><strong>No correlated malicious incidents found</strong><span>{batch.uncorrelated_alerts} alerts remain uncorrelated and were not forced into an incident.</span></div>}
     {batch.uncorrelated_alerts > 0 && <div className="batch-noise"><ShieldCheck /><div><strong>{batch.uncorrelated_alerts} alerts isolated from incident scoring</strong><span>These alerts remain available as uncorrelated telemetry. They do not change incident title, severity, confidence, MITRE mapping, or risk score.</span></div></div>}
   </section>;
 }
