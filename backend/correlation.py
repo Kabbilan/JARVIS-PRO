@@ -65,6 +65,8 @@ MITRE_TECHNIQUES = {
     "data_exfiltration": {"id": "T1041", "name": "Exfiltration Over C2 Channel", "tactic": "Exfiltration"},
     "defense_evasion": {"id": "T1562.001", "name": "Impair Defenses", "tactic": "Defense Evasion"},
     "malware": {"id": "T1204", "name": "User Execution", "tactic": "Execution"},
+    "phishing": {"id": "T1566", "name": "Phishing", "tactic": "Initial Access"},
+    "execution": {"id": "T1059", "name": "Command and Scripting Interpreter", "tactic": "Execution"},
     "c2_connection": {"id": "T1071", "name": "Application Layer Protocol", "tactic": "Command and Control"},
 }
 
@@ -94,6 +96,7 @@ def normalize_event(event, index):
         "ip": str(event.get("ip") or "unknown"),
         "device": str(event.get("device") or "unknown"),
         "resource": str(event.get("resource") or "Unknown"),
+        "incident_key": event.get("incident_key"),
         "base_severity": max(0, min(int(event.get("base_severity", DEFAULT_SEVERITY.get(event_type, 10))), 100)),
     }
 
