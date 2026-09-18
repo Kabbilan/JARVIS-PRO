@@ -1,10 +1,11 @@
+import asyncio
 import os
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any, Literal
-from ai_agent import generate_investigation
+from ai_agent import fallback_investigation, generate_investigation
 from correlation import analyze_events, analyze_scenario, get_scenarios
 from database import incident_summary, list_incidents, save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
@@ -52,6 +53,17 @@ class AnalyzeAlertsRequest(BaseModel):
     alerts: list[RawAlert] = Field(min_length=1, max_length=500)
 
 
+async def investigation_with_timeout(incident: dict[str, Any]) -> dict[str, Any]:
+    timeout_seconds = float(os.getenv("GEMINI_DEADLINE_SECONDS", "12"))
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(generate_investigation, incident),
+            timeout=timeout_seconds,
+        )
+    except TimeoutError:
+        return fallback_investigation(incident)
+
+
 @app.get("/api/health")
 def health():
     return {"status": "online", "service": "SentraPixel correlation engine", "version": "0.6.0"}
@@ -87,22 +99,22 @@ def analyze_raw_alerts(payload: AnalyzeAlertsRequest):
 
 
 @app.post("/api/investigate/{scenario_id}")
-def investigate(scenario_id: str):
+async def investigate(scenario_id: str):
     incident = analyze_scenario(scenario_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Scenario not found")
     save_incident(incident)
-    investigation = generate_investigation(incident)
+    investigation = await investigation_with_timeout(incident)
     save_investigation(incident["incident_id"], investigation)
     return {"incident_id": incident["incident_id"], "investigation": investigation}
 
 
 @app.post("/api/investigate-alerts")
-def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
+async def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
     incident = analyze_events([alert.as_event() for alert in payload.alerts])
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
-    investigation = generate_investigation(incident)
+    investigation = await investigation_with_timeout(incident)
     save_investigation(incident["incident_id"], investigation)
     return {"incident_id": incident["incident_id"], "investigation": investigation}
 
@@ -120,11 +132,11 @@ def review(payload: ReviewRequest):
 
 
 @app.get("/api/report/{scenario_id}")
-def report(scenario_id: str):
+async def report(scenario_id: str):
     incident = analyze_scenario(scenario_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    investigation = generate_investigation(incident)
+    investigation = await investigation_with_timeout(incident)
     pdf = generate_incident_report(incident, investigation)
     filename = f"SentraPixel-{incident['incident_id']}.pdf"
     return Response(
@@ -135,11 +147,11 @@ def report(scenario_id: str):
 
 
 @app.post("/api/report-alerts")
-def report_raw_alerts(payload: AnalyzeAlertsRequest):
+async def report_raw_alerts(payload: AnalyzeAlertsRequest):
     incident = analyze_events([alert.as_event() for alert in payload.alerts])
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
-    investigation = generate_investigation(incident)
+    investigation = await investigation_with_timeout(incident)
     pdf = generate_incident_report(incident, investigation)
     filename = f"SentraPixel-{incident['incident_id']}.pdf"
     return Response(
