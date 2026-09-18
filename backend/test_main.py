@@ -88,6 +88,15 @@ def test_custom_investigation_persists_incident_first(monkeypatch):
     assert calls == [("incident", "INC-CUSTOM"), ("investigation", "INC-CUSTOM")]
 
 
+def test_investigation_returns_all_agent_roles(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    response = client.post("/api/investigate/account-takeover")
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) >= {"investigation", "response_plan", "verification"}
+    assert body["response_plan"]["human_approval_required"] is True
+
+
 def test_report_is_pdf(monkeypatch):
     monkeypatch.setattr(main, "generate_investigation", lambda incident: main.fallback_investigation(incident))
     response = client.get("/api/report/account-takeover")
