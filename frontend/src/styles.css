@@ -292,3 +292,14 @@ main{position:relative;z-index:1;background:transparent}
 .scenario-panel,.card,.incident-hero,.metric,.empty-state,.analysis-loader,.history-panel,.agent-card{background-color:rgba(255,255,255,.88);backdrop-filter:blur(13px);-webkit-backdrop-filter:blur(13px)}
 @media(max-width:820px){.soc-video-bg video{opacity:.13}.soc-video-overlay{background:rgba(246,251,255,.88)}}
 @media(prefers-reduced-motion:reduce){.soc-video-bg video{display:none}.soc-video-bg{background:#f6fbff}}
+
+
+/* Video visibility fix: keep background inside the app stacking context */
+html,body,#root{min-height:100%;background:#eef8ff}
+.app-shell{position:relative;isolation:isolate;background:transparent}
+.soc-video-bg{z-index:0!important}
+.soc-video-bg video{opacity:.42!important;filter:saturate(1.05) contrast(1.05) brightness(1.15)!important}
+.soc-video-overlay{background:linear-gradient(90deg,rgba(246,251,255,.90) 0%,rgba(246,251,255,.66) 35%,rgba(246,251,255,.58) 68%,rgba(246,251,255,.72) 100%)!important}
+aside{z-index:20}
+main{position:relative;z-index:2}
+@media(max-width:820px){.soc-video-bg video{opacity:.26!important}.soc-video-overlay{background:rgba(246,251,255,.76)!important}}
