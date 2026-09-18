@@ -84,6 +84,63 @@ def _nearest_time(obj, root):
             if d2:return d2,k2,True
     return datetime.now(timezone.utc),None,True
 
+
+def _flatten(obj, prefix="", out=None):
+    out = out or {}
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if isinstance(value, (dict, list)):
+                _flatten(value, path, out)
+            else:
+                out[path.lower()] = value
+                out.setdefault(str(key).lower(), value)
+    elif isinstance(obj, list):
+        for i, value in enumerate(obj):
+            _flatten(value, f"{prefix}[{i}]", out)
+    return out
+
+
+def _deep_value(flat, *keys):
+    for key in keys:
+        key = key.lower()
+        if key in flat and flat[key] not in (None, ""):
+            return flat[key]
+    for path, value in flat.items():
+        for key in keys:
+            if path.endswith("." + key.lower()) and value not in (None, ""):
+                return value
+    return None
+
+
+def _enrich_nested(event, alert):
+    flat = _flatten(alert)
+    source_host = _deep_value(flat, "source_device.hostname", "source.hostname", "src.hostname", "hostname")
+    source_ip = _deep_value(flat, "source_device.ip_address", "source_device.ip", "source.ip", "src.ip", "source_ip", "src_ip")
+    source_user = _deep_value(flat, "source_device.user", "source.user", "actor.user", "username", "user")
+    dest_ip = _deep_value(flat, "destination_device.ip_address", "destination_device.ip", "destination.ip", "dst.ip", "destination_ip", "dst_ip")
+    dest_domain = _deep_value(flat, "destination_device.domain", "destination.domain", "dst.domain", "domain")
+    if event.get("device") in (None, "unknown"): event["device"] = str(source_host) if source_host else "unknown"
+    if event.get("ip") in (None, "unknown"): event["ip"] = str(source_ip) if source_ip else "unknown"
+    if event.get("user") in (None, "unknown"): event["user"] = str(source_user) if source_user else "unknown"
+    if event.get("resource") in (None, "Unknown"): event["resource"] = str(dest_ip or dest_domain) if (dest_ip or dest_domain) else "Unknown"
+
+    extras = {
+        "destination_ip": dest_ip,
+        "destination_domain": dest_domain,
+        "bytes_sent": _deep_value(flat, "exfiltration_details.bytes_sent", "network.bytes_sent", "bytes_sent", "sent_bytes"),
+        "file_count": _deep_value(flat, "exfiltration_details.file_count", "file_count"),
+        "protocol": _deep_value(flat, "exfiltration_details.protocol", "network.protocol", "protocol"),
+        "archive_name": _deep_value(flat, "exfiltration_details.archive_name", "archive_name", "file_name"),
+        "tool_used": _deep_value(flat, "exfiltration_details.tool_used", "process.name", "tool_used"),
+        "anomaly_score": _deep_value(flat, "alert_metadata.anomaly_score", "anomaly_score"),
+        "mitre_tactic": _deep_value(flat, "alert_metadata.mitre_tactic", "mitre.tactic", "mitre_tactic"),
+        "mitre_technique": _deep_value(flat, "alert_metadata.mitre_technique", "mitre.technique", "mitre_technique"),
+        "action_taken": _deep_value(flat, "alert_metadata.action_taken", "action_taken", "disposition"),
+    }
+    event.update({k: v for k, v in extras.items() if v not in (None, "")})
+    return event
+
 def normalize_uploaded_alert(a,index=0,root=None):
     if not isinstance(a,dict):raise UnsupportedAlertSchema("Alert is not an object")
     t,tk=_infer_type(a)
@@ -101,6 +158,7 @@ def normalize_uploaded_alert(a,index=0,root=None):
         raw=json.dumps(a,sort_keys=True,default=str).encode();r["id"]="AUTO-"+hashlib.sha1(raw).hexdigest()[:10].upper()
     r.setdefault("source","Unknown");r.setdefault("label",str(_pick(a,"label")[0] or t.replace("_"," ").title()))
     r.setdefault("user","unknown");r.setdefault("ip","unknown");r.setdefault("device","unknown");r.setdefault("resource","Unknown")
+    r=_enrich_nested(r,a)
     if inferred:r["timestamp_inferred"]=True
     if tk in ("semantic_text","security_context") or t=="normal_activity" and _pick(a,"type")[0] not in ("normal_activity","normal_login"):r["type_inferred"]=True
     return r,m
