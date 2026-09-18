@@ -1,5 +1,5 @@
 {
-  "name": "aegis-soc-frontend",
+  "name": "sentrapixel-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -17,4 +17,3 @@
   },
   "devDependencies": {}
 }
-
