@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 
 SCENARIOS = {
@@ -25,16 +26,17 @@ SCENARIOS = {
     },
 }
 
-
 STAGES = {
-    "failed_login": "Credential Attack",
-    "suspicious_login": "Account Compromise",
-    "privilege_escalation": "Privilege Escalation",
-    "sensitive_access": "Collection",
-    "data_exfiltration": "Data Exfiltration",
-    "defense_evasion": "Defense Evasion",
-    "normal_login": "Verified Login",
-    "normal_activity": "Normal Activity",
+    "failed_login": "Credential Attack", "suspicious_login": "Account Compromise",
+    "privilege_escalation": "Privilege Escalation", "sensitive_access": "Collection",
+    "data_exfiltration": "Data Exfiltration", "defense_evasion": "Defense Evasion",
+    "normal_login": "Verified Login", "normal_activity": "Normal Activity",
+}
+
+DEFAULT_SEVERITY = {
+    "failed_login": 15, "suspicious_login": 40, "privilege_escalation": 60,
+    "sensitive_access": 65, "data_exfiltration": 85, "defense_evasion": 70,
+    "normal_login": 5, "normal_activity": 3,
 }
 
 
@@ -43,13 +45,29 @@ def minutes(value):
     return parsed.hour * 60 + parsed.minute
 
 
+def normalize_event(event, index):
+    event_type = str(event.get("type", "normal_activity")).strip().lower().replace(" ", "_")
+    return {
+        "id": str(event.get("id") or f"RAW-{index + 1:03d}"),
+        "time": str(event.get("time") or "00:00"),
+        "source": str(event.get("source") or "Unknown"),
+        "type": event_type,
+        "label": str(event.get("label") or event_type.replace("_", " ").title()),
+        "user": str(event.get("user") or "unknown"),
+        "ip": str(event.get("ip") or "unknown"),
+        "device": str(event.get("device") or "unknown"),
+        "resource": str(event.get("resource") or "Unknown"),
+        "base_severity": max(0, min(int(event.get("base_severity", DEFAULT_SEVERITY.get(event_type, 10))), 100)),
+    }
+
+
 def correlation_reason(left, right):
     reasons = []
-    if left["user"] == right["user"]:
+    if left["user"] != "unknown" and left["user"] == right["user"]:
         reasons.append("same user")
-    if left["device"] == right["device"]:
+    if left["device"] != "unknown" and left["device"] == right["device"]:
         reasons.append("same device")
-    if left["ip"] == right["ip"]:
+    if left["ip"] != "unknown" and left["ip"] == right["ip"]:
         reasons.append("same IP")
     gap = minutes(right["time"]) - minutes(left["time"])
     if 0 <= gap <= 15:
@@ -70,21 +88,76 @@ def severity(events):
     event_types = {event["type"] for event in events}
     factors = []
     score = max(event["base_severity"] for event in events)
-    if "suspicious_login" in event_types:
-        factors.append({"label": "Suspicious successful login", "points": 8})
-        score += 8
-    if "privilege_escalation" in event_types:
-        factors.append({"label": "Privilege escalation", "points": 10})
-        score += 10
-    if "sensitive_access" in event_types:
-        factors.append({"label": "Sensitive resource accessed", "points": 8})
-        score += 8
-    if "data_exfiltration" in event_types:
-        factors.append({"label": "Large outbound data transfer", "points": 12})
-        score += 12
+    additions = [
+        ("suspicious_login", "Suspicious successful login", 8),
+        ("privilege_escalation", "Privilege escalation", 10),
+        ("sensitive_access", "Sensitive resource accessed", 8),
+        ("data_exfiltration", "Large outbound data transfer", 12),
+        ("defense_evasion", "Security control evasion", 7),
+    ]
+    for event_type, label, points in additions:
+        if event_type in event_types:
+            factors.append({"label": label, "points": points})
+            score += points
     score = min(score, 100)
     level = "critical" if score >= 85 else "high" if score >= 65 else "medium" if score >= 35 else "low"
     return score, level, factors
+
+
+def build_result(events, incident_id=None):
+    if not events:
+        return None
+    events = sorted(events, key=lambda event: minutes(event["time"]))
+    links = build_links(events)
+    score, level, factors = severity(events)
+    event_types = {event["type"] for event in events}
+    malicious = level in {"high", "critical"} and len(links) > 0
+
+    if "data_exfiltration" in event_types and "privilege_escalation" in event_types:
+        title = "Account Compromise with Data Exfiltration"
+    elif "data_exfiltration" in event_types:
+        title = "Possible Data Exfiltration"
+    elif malicious:
+        title = "Correlated Security Incident"
+    else:
+        title = "Benign or Low-Risk Activity"
+
+    stages = [STAGES.get(event["type"], event["type"].replace("_", " ").title()) for event in events]
+    summary = (
+        f"AEGIS correlated {len(events)} alerts using identity, device, IP and time evidence. "
+        f"Observed attack progression: {' -> '.join(stages)}."
+        if malicious else
+        f"AEGIS analyzed {len(events)} alerts but did not find a high-confidence malicious attack chain."
+    )
+    actions = (
+        ["Disable the affected identity", "Revoke active sessions", "Block the suspicious source IP",
+         "Isolate the endpoint", "Preserve logs and begin forensic review"]
+        if malicious else
+        ["Keep the identity under routine monitoring", "Close as benign after analyst verification"]
+    )
+    first = events[0]
+    return {
+        "incident_id": incident_id or f"INC-{uuid4().hex[:10].upper()}",
+        "title": title, "severity": level, "score": score, "status": "awaiting_review",
+        "summary": summary,
+        "events": [{**event, "stage": STAGES.get(event["type"], event["type"].replace("_", " ").title())} for event in events],
+        "links": links, "factors": factors,
+        "indicators": [
+            {"type": "IP", "value": first["ip"], "status": "suspicious" if malicious else "observed"},
+            {"type": "Identity", "value": first["user"], "status": "compromised" if malicious else "observed"},
+            {"type": "Device", "value": first["device"], "status": "at-risk" if malicious else "observed"},
+        ],
+        "recommended_actions": actions,
+        "metrics": {
+            "raw_alerts": len(events), "correlated_alerts": len(events) if malicious else 0,
+            "incidents": 1 if malicious else 0, "noise_reduced": 0 if malicious else len(events),
+        },
+    }
+
+
+def analyze_events(raw_events):
+    events = [normalize_event(event, index) for index, event in enumerate(raw_events)]
+    return build_result(events)
 
 
 def get_scenarios():
@@ -95,38 +168,5 @@ def analyze_scenario(scenario_id):
     scenario = SCENARIOS.get(scenario_id)
     if not scenario:
         return None
-    events = scenario["events"]
-    links = build_links(events)
-    score, level, factors = severity(events)
-    malicious = level in {"high", "critical"}
-    title = "Account Takeover with Data Exfiltration" if malicious else "Benign Authentication Activity"
-    summary = (
-        "Repeated authentication failures were followed by a successful login from an unfamiliar source. "
-        "The same identity obtained elevated privileges, accessed confidential data, transferred a large volume externally, and disabled endpoint protection."
-        if malicious
-        else "The user recovered from two failed login attempts on a known device and continued normal mailbox activity. No wider attack sequence was found."
-    )
-    actions = (
-        ["Disable the affected identity", "Revoke active sessions", "Block the suspicious source IP", "Isolate the endpoint", "Preserve logs and begin forensic review"]
-        if malicious
-        else ["Keep the identity under routine monitoring", "Close as benign after analyst verification"]
-    )
-    return {
-        "incident_id": "INC-2026-0918-001" if malicious else "INC-2026-0918-002",
-        "title": title,
-        "severity": level,
-        "score": score,
-        "status": "awaiting_review",
-        "summary": summary,
-        "events": [{**event, "stage": STAGES[event["type"]]} for event in events],
-        "links": links,
-        "factors": factors,
-        "indicators": [
-            {"type": "IP", "value": events[0]["ip"], "status": "suspicious" if malicious else "trusted"},
-            {"type": "Identity", "value": events[0]["user"], "status": "compromised" if malicious else "verified"},
-            {"type": "Device", "value": events[0]["device"], "status": "at-risk" if malicious else "known"},
-        ],
-        "recommended_actions": actions,
-        "metrics": {"raw_alerts": len(events), "correlated_alerts": len(events) if malicious else 0, "incidents": 1 if malicious else 0, "noise_reduced": 0 if malicious else len(events)},
-    }
-
+    incident_id = "INC-2026-0918-001" if scenario_id == "account-takeover" else "INC-2026-0918-002"
+    return build_result(scenario["events"], incident_id)
