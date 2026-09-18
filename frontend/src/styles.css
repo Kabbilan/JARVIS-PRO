@@ -328,3 +328,15 @@ header{padding:8px 0 18px}
  .soc-video-bg video{opacity:.08!important;transform:scale(1.14)}
  .soc-video-overlay{background:rgba(247,251,255,.88)!important}
 }
+
+
+/* Remove distracting video; premium animated SOC ambient background */
+.soc-video-bg{display:none!important}
+body{
+ background:
+ radial-gradient(circle at 82% 8%,rgba(46,188,236,.12),transparent 31%),
+ radial-gradient(circle at 42% 78%,rgba(111,91,235,.07),transparent 32%),
+ linear-gradient(135deg,#f8fcff 0%,#eef8ff 48%,#f9fbff 100%)!important
+}
+main:before{z-index:-1!important;opacity:.8}
+main:after{z-index:-1!important;opacity:.65}
