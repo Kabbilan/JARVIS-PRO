@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Any, Literal
 from ai_agent import generate_investigation
 from correlation import analyze_events, analyze_scenario, get_scenarios
-from database import save_incident, save_investigation, save_review
+from database import list_incidents, save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
 from fastapi.responses import Response
 
@@ -62,6 +62,11 @@ def scenarios():
     return get_scenarios()
 
 
+@app.get("/api/incidents")
+def incidents():
+    return {"incidents": list_incidents()}
+
+
 @app.post("/api/analyze/{scenario_id}")
 def analyze(scenario_id: str):
     result = analyze_scenario(scenario_id)
@@ -96,7 +101,6 @@ def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
     incident = analyze_events([alert.as_event() for alert in payload.alerts])
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
-    save_incident(incident)
     investigation = generate_investigation(incident)
     save_investigation(incident["incident_id"], investigation)
     return {"incident_id": incident["incident_id"], "investigation": investigation}

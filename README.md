@@ -31,5 +31,8 @@ Open `http://localhost:5173`.
 3. Inspect alert links, attack chain, severity factors, AI investigation, and timeline.
 4. Review recommended actions and approve or reject them.
 5. Download the evidence-backed incident report as a PDF.
+6. Open **Incidents** to review saved cases and analyst decisions.
 
 Each custom alert requires `time` (`HH:MM`) and `type`. Optional fields include `id`, `source`, `label`, `user`, `ip`, `device`, `resource`, and `base_severity` (0–100).
+
+Incident history uses Supabase when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are configured. Without them, the backend keeps a demo-safe in-memory history for the current server session.

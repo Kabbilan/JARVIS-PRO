@@ -36,6 +36,10 @@ function App() {
   const [inputMode, setInputMode] = useState("scenario");
   const [alertText, setAlertText] = useState(sampleAlerts);
   const [currentAlerts, setCurrentAlerts] = useState(null);
+  const [view, setView] = useState("command");
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   useEffect(() => {
     fetch(`${API}/api/scenarios`).then((response) => {
@@ -133,6 +137,18 @@ function App() {
     finally { setReviewing(""); }
   }
 
+  async function openHistory() {
+    setView("incidents"); setHistoryLoading(true); setHistoryError("");
+    try {
+      const response = await fetch(`${API}/api/incidents`);
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      setHistory(result.incidents || []); setApiOnline(true);
+    } catch {
+      setHistoryError("Incident history is unavailable. Check the backend connection."); setApiOnline(false);
+    } finally { setHistoryLoading(false); }
+  }
+
   async function downloadReport() {
     setReporting(true); setReportError("");
     try {
@@ -159,12 +175,13 @@ function App() {
   return <div className="app-shell">
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
-      <nav aria-label="Primary navigation"><button className="active"><Radar /> Command Center</button><button><Activity /> Live Events</button><button><AlertTriangle /> Incidents</button><button><BrainCircuit /> AI Investigation</button></nav>
+      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button><BrainCircuit /> AI Investigation</button></nav>
       <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === false ? "Waiting for FastAPI on port 8000" : "Rules, evidence, and analyst review active"}</small></div>
     </aside>
     <main>
-      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>Incident Correlation Command Center</h1><p>Correlate fragmented alerts into an evidence-backed incident.</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
+      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
+      {view === "incidents" ? <IncidentHistory incidents={history} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -202,6 +219,7 @@ function App() {
         </section>
         <section className="card response-card"><div className="response-heading"><CardTitle icon={<LockKeyhole />} label="HUMAN-IN-THE-LOOP" title="Recommended containment plan" /><button className="report-button" onClick={downloadReport} disabled={reporting}>{reporting ? <LoaderCircle className="button-spinner" /> : <Download />}{reporting ? "Generating report" : "Download incident report"}</button></div><div className="actions">{incident.recommended_actions.map((action, index) => <div key={action}><span>{String(index + 1).padStart(2, "0")}</span>{action}</div>)}</div>{reportError && <div className="error" role="alert"><XCircle />{reportError}</div>}{!review ? <div className="review-buttons"><button className="reject" onClick={() => submitReview("rejected")} disabled={Boolean(reviewing)}>{reviewing === "rejected" ? <LoaderCircle className="button-spinner" /> : <XCircle />} Reject plan</button><button className="approve" onClick={() => submitReview("approved")} disabled={Boolean(reviewing)}>{reviewing === "approved" ? <LoaderCircle className="button-spinner" /> : <CheckCircle2 />} Approve simulated response</button></div> : <div className={`review-result ${review.decision}`}>{review.decision === "approved" ? <CheckCircle2 /> : <XCircle />}{review.message}</div>}</section>
       </>}
+      </>}
     </main>
   </div>;
 }
@@ -211,5 +229,12 @@ function CardTitle({ icon, label, title }) { return <div className="card-title">
 function EvidenceLink({ links, eventId }) {
   const link = links.find((item) => item.to === eventId);
   return link ? <em><Link2 size={12}/>{link.reason}</em> : null;
+}
+function IncidentHistory({ incidents, loading, error, onRefresh, onBack }) {
+  return <section className="history-panel">
+    <div className="history-toolbar"><div><p className="section-label">CASE RECORDS</p><h2>Analyzed incidents</h2></div><div><button onClick={onBack}>New analysis</button><button className="refresh" onClick={onRefresh} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" /> : <Activity />} Refresh</button></div></div>
+    {error && <div className="error" role="alert"><XCircle />{error}</div>}
+    {loading ? <div className="history-state"><LoaderCircle className="button-spinner" /><span>Loading incident history</span></div> : !incidents.length ? <div className="history-state"><FileSearch /><strong>No incidents recorded yet</strong><span>Run a demo scenario or upload security alerts to create the first incident.</span><button onClick={onBack}>Open Command Center</button></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Score</th><th>Alerts</th><th>Status</th><th>Created</th></tr></thead><tbody>{incidents.map((item) => <tr key={item.incident_id}><td><strong>{item.title}</strong><small>{item.incident_id}</small></td><td><span className={`severity-pill ${item.severity}`}>{item.severity}</span></td><td className="score-cell">{item.score}</td><td>{item.metrics?.raw_alerts ?? "-"}</td><td><span className={`status-pill ${item.status}`}>{String(item.status || "open").replace("_", " ")}</span></td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : "Current session"}</td></tr>)}</tbody></table></div>}
+  </section>;
 }
 export default App;
