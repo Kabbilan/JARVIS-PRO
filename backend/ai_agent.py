@@ -62,8 +62,13 @@ def generate_investigation(incident):
 
     try:
         from google import genai
+        from google.genai import types
 
-        client = genai.Client(api_key=api_key)
+        timeout_ms = int(os.getenv("GEMINI_TIMEOUT_MS", "10000"))
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=timeout_ms),
+        )
         prompt = (
             "You are the investigation agent inside SentraPixel SOC. Analyze only the supplied incident JSON. "
             "Do not invent evidence or facts not present in the data. Explain what happened, cite the strongest "
