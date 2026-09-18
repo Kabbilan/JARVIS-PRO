@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileJson, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, SearchCheck, ShieldCheck, Upload, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, ArrowLeft, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileJson, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, SearchCheck, ShieldCheck, Upload, XCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const scenarioCatalog = [
@@ -84,12 +84,27 @@ function App() {
     setError("");
   }
 
+  function openCommandCenter() {
+    setView("command");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function openAnalysis() {
+    if (!incident && !loading) {
+      openCommandCenter();
+      return;
+    }
+    setView("analysis");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function runAnalysis() {
     if (inputMode === "scenario" && !availableScenarioIds.has(selected)) {
       setError("Data Exfiltration scenario is waiting for the backend API. Add scenario ID: data-exfiltration.");
       return;
     }
-    setLoading(true); setReview(null); setError("");
+    setLoading(true); setIncident(null); setInvestigation(null); setReview(null); setError(""); setView("analysis");
+    window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       let alerts = null;
       if (inputMode === "custom") {
@@ -109,6 +124,7 @@ function App() {
     } catch (analysisError) {
       if (analysisError.message === "invalid-alerts" || analysisError instanceof SyntaxError) setError("Invalid JSON. Provide a non-empty alert array or an object with an alerts array.");
       else { setError("Correlation engine unavailable. Confirm the FastAPI service is running on port 8000."); setApiOnline(false); }
+      setView("command");
     } finally { setLoading(false); }
   }
 
@@ -177,13 +193,13 @@ function App() {
   return <div className="app-shell">\n
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
-      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button onClick={() => { setView("command"); window.setTimeout(() => document.querySelector(".agent-card")?.scrollIntoView({ behavior: "smooth" }), 0); }}><BrainCircuit /> AI Investigation</button></nav>
+      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={openCommandCenter}><Radar /> Command Center</button><button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button className={view === "analysis" ? "active" : ""} onClick={openAnalysis}><BrainCircuit /> Analysis</button></nav>
       <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === null ? "CONNECTING TO ENGINE" : apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === null ? "Verifying production API" : apiOnline === false ? "Backend connection unavailable" : "Rules, evidence, and analyst review active"}</small></div>
     </aside>
     <main>
-      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
+      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : view === "analysis" ? "Security Analysis Workspace" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : view === "analysis" ? "Review correlated evidence, risk, AI findings, and response actions in one focused workspace." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : view === "live" ? <LiveEvents onAnalyze={() => setView("command")} /> : <>
+      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -195,7 +211,10 @@ function App() {
         {error && <div className="error" role="alert"><XCircle />{error}</div>}
       </section>
 
-      {!incident && !loading && <section className="empty-state"><div className="scanner"><Radar /></div><p>Telemetry ready</p><span>Choose a scenario to reconstruct its attack chain and evidence.</span></section>}
+      <section className="empty-state"><div className="scanner"><Radar /></div><p>Telemetry ready</p><span>Choose a scenario or upload alerts. Results will open in the dedicated Analysis workspace.</span></section>
+      </> : <section className="analysis-workspace">
+      <div className="analysis-toolbar"><button onClick={openCommandCenter}><ArrowLeft /> Back to Command Center</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
+      {error && <div className="error" role="alert"><XCircle />{error}</div>}
       {loading && <section className="analysis-loader"><div className="loader-visual"><span className="orbit one" /><span className="orbit two" /><BrainCircuit /></div><div><p className="section-label">CORRELATION IN PROGRESS</p><h2>{loadingStages[loadingStage]}</h2><span>SentraPixel is connecting identity, device, IP, and event evidence.</span></div><div className="stage-track">{loadingStages.map((stage, index) => <span key={stage} className={index <= loadingStage ? "complete" : ""} />)}</div></section>}
 
       {incident && <>
@@ -221,7 +240,7 @@ function App() {
         </section>
         <section className="card response-card"><div className="response-heading"><CardTitle icon={<LockKeyhole />} label="HUMAN-IN-THE-LOOP" title="Recommended containment plan" /><button className="report-button" onClick={downloadReport} disabled={reporting}>{reporting ? <LoaderCircle className="button-spinner" /> : <Download />}{reporting ? "Generating report" : "Download incident report"}</button></div><div className="actions">{incident.recommended_actions.map((action, index) => <div key={action}><span>{String(index + 1).padStart(2, "0")}</span>{action}</div>)}</div>{reportError && <div className="error" role="alert"><XCircle />{reportError}</div>}{!review ? <div className="review-buttons"><button className="reject" onClick={() => submitReview("rejected")} disabled={Boolean(reviewing)}>{reviewing === "rejected" ? <LoaderCircle className="button-spinner" /> : <XCircle />} Reject plan</button><button className="approve" onClick={() => submitReview("approved")} disabled={Boolean(reviewing)}>{reviewing === "approved" ? <LoaderCircle className="button-spinner" /> : <CheckCircle2 />} Approve simulated response</button></div> : <div className={`review-result ${review.decision}`}>{review.decision === "approved" ? <CheckCircle2 /> : <XCircle />}{review.message}</div>}</section>
       </>}
-      </>}
+      </section>}
     </main>
   </div>;
 }
