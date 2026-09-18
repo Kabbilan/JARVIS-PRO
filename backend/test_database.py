@@ -1,5 +1,5 @@
 from correlation import analyze_scenario
-from database import incident_summary, list_incidents, save_incident, save_review
+from database import get_incident, incident_summary, list_incidents, save_incident, save_investigation, save_review
 
 
 def test_incident_history_and_review_without_supabase(monkeypatch):
@@ -17,3 +17,15 @@ def test_incident_history_and_review_without_supabase(monkeypatch):
     assert summary["total"] >= 1
     assert summary["critical"] >= 1
     assert summary["approved"] >= 1
+
+
+def test_cached_incident_keeps_full_evidence(monkeypatch):
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SECRET_KEY", raising=False)
+    incident = analyze_scenario("data-exfiltration")
+    assert save_incident(incident)
+    assert save_investigation(incident["incident_id"], {"provider": "fallback", "narrative": "stored", "evidence": [], "next_steps": []})
+    stored = get_incident(incident["incident_id"])
+    assert stored["events"]
+    assert stored["links"]
+    assert stored["investigation"]["narrative"] == "stored"
