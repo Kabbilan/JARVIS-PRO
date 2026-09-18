@@ -200,14 +200,14 @@ function App() {
     } finally { setHistoryLoading(false); }
   }
 
-  async function openIncident(incidentId, returnView = null) {\n    setAnalysisReturnView(returnView || (batch ? "batch" : "incidents"));
+  async function openIncident(incidentId, source = "incidents") {
     setLoading(true); setIncident(null); setInvestigation(null); setResponsePlan(null); setVerification(null); setError(""); setView("analysis");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const response = await fetch(`${API}/api/incidents/${incidentId}`);
       if (!response.ok) throw new Error();
       const result = await response.json();
-      setIncident(result); setInvestigation(result.investigation || null); setResponsePlan(result.investigation?.response_plan || null); setVerification(result.investigation?.verification || null); setReopenedIncident(true); setApiOnline(true);
+      setIncident({ ...result, _openedFromBatch: source === "batch" }); setInvestigation(result.investigation || null); setResponsePlan(result.investigation?.response_plan || null); setVerification(result.investigation?.verification || null); setReopenedIncident(true); setApiOnline(true);
       if (!result.investigation) runIncidentInvestigation(incidentId);
     } catch {
       setError("Incident details could not be loaded. Return to Incident History and retry."); setApiOnline(false);
@@ -275,7 +275,7 @@ function App() {
 
       <section className="empty-state"><div className="scanner"><Radar /></div><p>Telemetry ready</p><span>Choose a scenario or upload alerts. Results will open in the dedicated Analysis workspace.</span></section>
       </> : <section className="analysis-workspace">
-      <div className="analysis-toolbar"><button onClick={backFromAnalysis}><ArrowLeft /> {batch ? "Back to Batch Summary" : analysisReturnView === "incidents" ? "Back to Incidents" : "Back to Command Center"}</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
+      <div className="analysis-toolbar"><button onClick={() => { if (incident?._openedFromBatch && batch) { setView("batch"); window.scrollTo({ top: 0, behavior: "smooth" }); } else if (reopenedIncident) { openHistory(); } else { openCommandCenter(); } }}><ArrowLeft /> {incident?._openedFromBatch && batch ? "Back to Batch Summary" : reopenedIncident ? "Back to Incidents" : "Back to Command Center"}</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
       {error && <div className="error" role="alert"><XCircle />{error}</div>}
       {loading && <section className="analysis-loader"><div className="loader-visual"><span className="orbit one" /><span className="orbit two" /><BrainCircuit /></div><div><p className="section-label">CORRELATION IN PROGRESS</p><h2>{loadingStages[loadingStage]}</h2><span>SentraPixel is connecting identity, device, IP, and event evidence.</span></div><div className="stage-track">{loadingStages.map((stage, index) => <span key={stage} className={index <= loadingStage ? "complete" : ""} />)}</div></section>}
 
