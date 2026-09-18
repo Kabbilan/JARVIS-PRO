@@ -146,7 +146,7 @@ async def analyze_raw_alerts(request: Request):
     if not batch:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
     batch["normalization"] = normalization
-    for incident in batch["incidents"]:
+    for incident in batch["incidents"] + batch.get("standalone_threats", []):
         save_incident(incident)
     return batch
 
