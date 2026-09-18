@@ -8,6 +8,8 @@ def test_account_takeover_is_critical():
     assert result["title"] == "Account Takeover"
     assert len(result["links"]) == 3
     assert result["events"][1]["stage"] == "Account Compromise"
+    assert result["confidence"] >= 80
+    assert {item["id"] for item in result["mitre_techniques"]} >= {"T1110", "T1078", "T1098"}
 
 
 def test_data_exfiltration_is_separate_and_critical():
@@ -22,6 +24,7 @@ def test_benign_login_stays_low():
     result = analyze_scenario("benign-login")
     assert result["severity"] == "low"
     assert result["metrics"]["incidents"] == 0
+    assert result["confidence"] < 60
 
 
 def test_raw_alerts_are_normalized_and_correlated():
