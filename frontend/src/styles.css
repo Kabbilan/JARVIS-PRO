@@ -197,6 +197,16 @@ nav button:hover svg{transform:translateX(3px) scale(1.1);filter:drop-shadow(0 0
  .analysis-toolbar>div{grid-row:auto;flex-wrap:wrap}
 }
 
+/* Incident intelligence, MITRE mapping, and SOC analytics */
+.mitre-list{display:grid;gap:9px}.mitre-list>div{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:11px;border:1px solid #dceaf3;border-radius:9px;background:#f8fcff}.mitre-list>div>span{padding:5px 7px;border-radius:6px;background:#e7f7ff;color:#087eae;font:800 9px 'Space Mono',monospace}.mitre-list strong,.mitre-list small{display:block}.mitre-list strong{font-size:12px;color:#203c54}.mitre-list small{margin-top:4px;color:#758a9c;font-size:9px;line-height:1.45}
+.clickable-row{cursor:pointer;outline:0}.clickable-row:hover,.clickable-row:focus{background:#edf9ff!important;box-shadow:inset 3px 0 #28bfe8}.clickable-row:focus{outline:2px solid #8ed8f1;outline-offset:-2px}
+.soc-analytics{display:grid;grid-template-columns:minmax(260px,1.35fr) 130px minmax(210px,1fr);align-items:center;gap:22px;margin:18px 0;padding:18px;border:1px solid #d8e8f2;border-radius:12px;background:linear-gradient(135deg,#f7fcff,#fff);box-shadow:0 10px 28px rgba(35,101,150,.05)}
+.severity-bars{display:grid;gap:8px;margin-top:12px}.severity-bars>div{display:grid;grid-template-columns:58px 1fr 20px;align-items:center;gap:8px}.severity-bars span{font:700 8px 'Space Mono',monospace;text-transform:uppercase;color:#657f94}.severity-bars b{font-size:10px;color:#29465d}.severity-bars>div>div{height:7px;border-radius:99px;background:#e7eff5;overflow:hidden}.severity-bars i{display:block;height:100%;min-width:3px;border-radius:99px}.severity-bars i.critical{background:#eb4d65}.severity-bars i.high{background:#f07e58}.severity-bars i.medium{background:#efba46}.severity-bars i.low{background:#32bb88}
+.readiness-ring{width:104px;height:104px;margin:auto;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#32c997 var(--readiness),#e4eef4 0);position:relative}.readiness-ring:after{content:"";position:absolute;inset:10px;border-radius:50%;background:#fff}.readiness-ring>span{position:relative;z-index:1;text-align:center}.readiness-ring strong,.readiness-ring small{display:block}.readiness-ring strong{font-size:21px;color:#153650}.readiness-ring small{margin-top:2px;font:700 7px 'Space Mono',monospace;color:#71889a}
+.analytics-copy strong,.analytics-copy span{display:block}.analytics-copy strong{margin-top:9px;color:#18845f;font-size:16px}.analytics-copy span{margin-top:7px;color:#71869a;font-size:10px;line-height:1.55}
+@media(max-width:900px){.soc-analytics{grid-template-columns:1fr 120px}.analytics-copy{grid-column:1/-1}}
+@media(max-width:560px){.soc-analytics{grid-template-columns:1fr}.readiness-ring{margin:4px 0}.analytics-copy{grid-column:auto}}
+
 
 /* Whole-page motion system */
 main{animation:pageReveal .7s cubic-bezier(.2,.8,.2,1) both}
