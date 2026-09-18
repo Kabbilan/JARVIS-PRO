@@ -177,13 +177,13 @@ function App() {
   return <div className="app-shell">
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
-      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button><BrainCircuit /> AI Investigation</button></nav>
+      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button onClick={() => { setView("command"); window.setTimeout(() => document.querySelector(".agent-card")?.scrollIntoView({ behavior: "smooth" }), 0); }}><BrainCircuit /> AI Investigation</button></nav>
       <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === null ? "CONNECTING TO ENGINE" : apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === null ? "Verifying production API" : apiOnline === false ? "Backend connection unavailable" : "Rules, evidence, and analyst review active"}</small></div>
     </aside>
     <main>
-      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
+      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : <>
+      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : view === "live" ? <LiveEvents onAnalyze={() => setView("command")} /> : <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -249,4 +249,26 @@ function IncidentHistory({ incidents, summary, loading, error, onRefresh, onBack
     {loading ? <div className="history-state"><LoaderCircle className="button-spinner" /><span>Loading incident history</span></div> : !incidents.length ? <div className="history-state"><FileSearch /><strong>No incidents recorded yet</strong><span>Run a demo scenario or upload security alerts to create the first incident.</span><button onClick={onBack}>Open Command Center</button></div> : !filtered.length ? <div className="history-state compact"><SearchCheck /><strong>No matching incidents</strong><span>Change or clear the current filters.</span></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Score</th><th>Alerts</th><th>Status</th><th>Created</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.incident_id}><td><strong>{item.title}</strong><small>{item.incident_id}</small></td><td><span className={`severity-pill ${item.severity}`}>{item.severity}</span></td><td className="score-cell">{item.score}</td><td>{item.metrics?.raw_alerts ?? "-"}</td><td><span className={`status-pill ${item.status}`}>{String(item.status || "open").replace("_", " ")}</span></td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : "Current session"}</td></tr>)}</tbody></table></div>}
   </section>;
 }
+function LiveEvents({ onAnalyze }) {
+  const [query, setQuery] = useState("");
+  const [severity, setSeverity] = useState("all");
+  const events = [
+    { id: "EVT-2048", time: "13:08:42", severity: "critical", type: "Data Exfiltration", source: "Firewall", detail: "Large outbound transfer to an unusual destination" },
+    { id: "EVT-2047", time: "13:08:17", severity: "high", type: "Privilege Escalation", source: "Identity", detail: "Administrative privilege granted after suspicious login" },
+    { id: "EVT-2046", time: "13:07:54", severity: "medium", type: "Suspicious Login", source: "Identity", detail: "Authentication from an unusual location" },
+    { id: "EVT-2045", time: "13:07:21", severity: "low", type: "Failed Login", source: "SIEM", detail: "Repeated password failures detected" },
+    { id: "EVT-2044", time: "13:06:48", severity: "high", type: "Malware Alert", source: "Endpoint", detail: "Suspicious process execution blocked on LAP-042" }
+  ];
+  const filtered = events.filter((event) => {
+    const text = `${event.type} ${event.source} ${event.detail} ${event.id}`.toLowerCase();
+    return text.includes(query.toLowerCase()) && (severity === "all" || event.severity === severity);
+  });
+  return <section className="history-panel">
+    <div className="history-toolbar"><div><p className="section-label">LIVE TELEMETRY</p><h2>Incoming security events</h2></div><div><span className="api-label"><CircleDot /> STREAM ACTIVE</span><button className="refresh" onClick={onAnalyze}><Radar /> Analyze events</button></div></div>
+    <div className="history-metrics"><Metric label="Events visible" value={events.length} tone="blue" caption="demo stream" /><Metric label="Critical" value={events.filter(e => e.severity === "critical").length} tone="red" caption="immediate attention" /><Metric label="High risk" value={events.filter(e => e.severity === "high").length} tone="violet" caption="investigate" /><Metric label="Sources" value={new Set(events.map(e => e.source)).size} tone="green" caption="telemetry feeds" /></div>
+    <div className="history-filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search event, source, or ID" /><select value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select><span>{filtered.length} events</span></div>
+    {!filtered.length ? <div className="history-state compact"><SearchCheck /><strong>No matching live events</strong><span>Change or clear the current filters.</span></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Time</th><th>Event</th><th>Severity</th><th>Source</th><th>Details</th></tr></thead><tbody>{filtered.map((event) => <tr key={event.id}><td className="score-cell">{event.time}</td><td><strong>{event.type}</strong><small>{event.id}</small></td><td><span className={`severity-pill ${event.severity}`}>{event.severity}</span></td><td>{event.source}</td><td>{event.detail}</td></tr>)}</tbody></table></div>}
+  </section>;
+}
+
 export default App;
