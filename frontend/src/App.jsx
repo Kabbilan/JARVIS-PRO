@@ -213,6 +213,19 @@ function App() {
     } finally { setLoading(false); }
   }
 
+  function backFromAnalysis() {
+    if (batch) {
+      setView("batch");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    if (analysisReturnView === "incidents") {
+      openHistory();
+      return;
+    }
+    openCommandCenter();
+  }
+
   async function downloadReport() {
     setReporting(true); setReportError("");
     try {
@@ -260,7 +273,7 @@ function App() {
 
       <section className="empty-state"><div className="scanner"><Radar /></div><p>Telemetry ready</p><span>Choose a scenario or upload alerts. Results will open in the dedicated Analysis workspace.</span></section>
       </> : <section className="analysis-workspace">
-      <div className="analysis-toolbar"><button onClick={() => { if (analysisReturnView === "batch" && batch) { setView("batch"); window.scrollTo({ top: 0, behavior: "smooth" }); } else if (analysisReturnView === "incidents") openHistory(); else openCommandCenter(); }}><ArrowLeft /> {analysisReturnView === "batch" && batch ? "Back to Batch Summary" : analysisReturnView === "incidents" ? "Back to Incidents" : "Back to Command Center"}</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
+      <div className="analysis-toolbar"><button onClick={backFromAnalysis}><ArrowLeft /> {batch ? "Back to Batch Summary" : analysisReturnView === "incidents" ? "Back to Incidents" : "Back to Command Center"}</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
       {error && <div className="error" role="alert"><XCircle />{error}</div>}
       {loading && <section className="analysis-loader"><div className="loader-visual"><span className="orbit one" /><span className="orbit two" /><BrainCircuit /></div><div><p className="section-label">CORRELATION IN PROGRESS</p><h2>{loadingStages[loadingStage]}</h2><span>SentraPixel is connecting identity, device, IP, and event evidence.</span></div><div className="stage-track">{loadingStages.map((stage, index) => <span key={stage} className={index <= loadingStage ? "complete" : ""} />)}</div></section>}
 
