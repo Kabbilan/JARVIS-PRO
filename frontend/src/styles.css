@@ -355,3 +355,26 @@ main:after{z-index:-1!important;opacity:.65}
    min-height:100vh
  }
 }
+
+
+/* Responsive engine status card: stay inside the fixed sidebar viewport */
+@media(min-width:761px){
+ aside{overflow:visible}
+ .system-card{
+   position:fixed!important;
+   left:20px!important;
+   bottom:28px!important;
+   width:210px!important;
+   margin:0!important;
+   z-index:30!important;
+   padding:14px!important
+ }
+ .system-card small{overflow-wrap:anywhere}
+}
+@media(min-width:761px) and (max-width:1050px){
+ .system-card{left:16px!important;width:178px!important;bottom:22px!important;padding:12px!important}
+}
+@media(max-height:650px) and (min-width:761px){
+ .system-card{bottom:12px!important;padding:10px!important}
+ .system-card small{display:none!important}
+}
