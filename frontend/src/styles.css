@@ -303,3 +303,28 @@ html,body,#root{min-height:100%;background:#eef8ff}
 aside{z-index:20}
 main{position:relative;z-index:2}
 @media(max-width:820px){.soc-video-bg video{opacity:.26!important}.soc-video-overlay{background:rgba(246,251,255,.76)!important}}
+
+
+/* Refined SOC video treatment: subtle ambient motion, not a washed-out wallpaper */
+.soc-video-bg{background:#f5faff}
+.soc-video-bg video{
+ opacity:.13!important;
+ filter:saturate(.65) contrast(.92) brightness(1.12) blur(.2px)!important;
+ transform:scale(1.08)
+}
+.soc-video-overlay{
+ background:
+   linear-gradient(180deg,rgba(247,251,255,.78) 0%,rgba(247,251,255,.66) 34%,rgba(247,251,255,.78) 100%),
+   radial-gradient(circle at 72% 12%,rgba(255,255,255,.30),rgba(244,250,255,.62) 58%,rgba(244,250,255,.82) 100%)!important
+}
+.scenario-panel,.card,.incident-hero,.metric,.empty-state,.analysis-loader,.history-panel,.agent-card{
+ background:rgba(255,255,255,.94)!important;
+ backdrop-filter:blur(18px) saturate(1.08);
+ -webkit-backdrop-filter:blur(18px) saturate(1.08);
+ box-shadow:0 12px 34px rgba(37,86,125,.08)
+}
+header{padding:8px 0 18px}
+@media(max-width:820px){
+ .soc-video-bg video{opacity:.08!important;transform:scale(1.14)}
+ .soc-video-overlay{background:rgba(247,251,255,.88)!important}
+}
