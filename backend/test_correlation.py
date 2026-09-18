@@ -37,6 +37,31 @@ def test_raw_alerts_are_normalized_and_correlated():
     assert len(result["links"]) == 2
 
 
+def test_unrelated_noise_does_not_break_or_inflate_attack_chain():
+    alerts = [
+        {"id": "A", "time": "09:00", "type": "failed_login", "user": "sam@acme.io", "ip": "8.8.8.8", "device": "D-1"},
+        {"id": "NOISE", "time": "09:02", "type": "normal_activity", "user": "alex@acme.io", "ip": "10.0.0.2", "device": "D-9"},
+        {"id": "B", "time": "09:04", "type": "suspicious_login", "user": "sam@acme.io", "ip": "8.8.8.8", "device": "D-1"},
+        {"id": "C", "time": "09:08", "type": "data_exfiltration", "user": "sam@acme.io", "ip": "8.8.8.8", "device": "D-1"},
+    ]
+    result = analyze_events(alerts)
+    assert result["severity"] == "critical"
+    assert result["metrics"]["correlated_alerts"] == 3
+    assert result["metrics"]["noise_reduced"] == 1
+    assert {link["to"] for link in result["links"]} == {"B", "C"}
+
+
+def test_time_proximity_alone_is_not_correlation_evidence():
+    alerts = [
+        {"time": "09:00", "type": "normal_activity", "user": "one@acme.io", "ip": "10.0.0.1", "device": "D-1"},
+        {"time": "09:01", "type": "data_exfiltration", "user": "two@acme.io", "ip": "10.0.0.2", "device": "D-2"},
+    ]
+    result = analyze_events(alerts)
+    assert result["links"] == []
+    assert result["metrics"]["incidents"] == 0
+    assert result["metrics"]["noise_reduced"] == 2
+
+
 def test_investigation_falls_back_without_api_key(monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     incident = analyze_scenario("data-exfiltration")

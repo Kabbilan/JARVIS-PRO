@@ -56,7 +56,10 @@ def generate_incident_report(
 
     story.append(Paragraph("Correlation Evidence", styles["Heading2"]))
     for factor in incident.get("factors", []):
-        story.append(Paragraph(f"• {factor}", styles["BodyText"]))
+        label = factor.get("label", "Risk factor") if isinstance(factor, dict) else str(factor)
+        points = factor.get("points") if isinstance(factor, dict) else None
+        detail = f"{label} (+{points})" if points is not None else label
+        story.append(Paragraph(f"• {detail}", styles["BodyText"]))
 
     story.extend([
         Spacer(1, 10),

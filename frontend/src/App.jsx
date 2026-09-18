@@ -118,7 +118,7 @@ function App() {
         <section className="metrics"><Metric label="Raw alerts" value={incident.metrics.raw_alerts} tone="blue" /><Metric label="Correlated" value={incident.metrics.correlated_alerts} tone="violet" /><Metric label="Incidents" value={incident.metrics.incidents} tone="red" /><Metric label="Noise reduced" value={incident.metrics.noise_reduced} tone="green" /></section>
         <section className={`incident-hero ${incident.severity}`}><div><div className="incident-meta"><span>{incident.incident_id}</span><span>{incident.status.replace("_", " ")}</span></div><h2>{incident.title}</h2><p>{incident.summary}</p></div><div className="risk-orb"><strong>{incident.score}</strong><span>RISK SCORE</span><em>{incident.severity}</em></div></section>
         <div className="content-grid">
-          <section className="card attack-card"><CardTitle icon={<Clock3 />} label="ATTACK TIMELINE" title="Evidence-linked event sequence" /><div className="chain">{incident.events.map((event, index) => <div className="chain-row" key={event.id}><div className="time">{event.time}</div><div className={`node ${index === incident.events.length - 1 ? "last" : ""}`}><span>{index + 1}</span></div><div className="event"><div><b>{event.stage}</b><small>{event.id} · {event.source}</small></div><p>{event.label}</p>{incident.links[index] && <em><Link2 size={12}/>{incident.links[index].reason}</em>}</div></div>)}</div></section>
+          <section className="card attack-card"><CardTitle icon={<Clock3 />} label="ATTACK TIMELINE" title="Evidence-linked event sequence" /><div className="chain">{incident.events.map((event, index) => <div className="chain-row" key={event.id}><div className="time">{event.time}</div><div className={`node ${index === incident.events.length - 1 ? "last" : ""}`}><span>{index + 1}</span></div><div className="event"><div><b>{event.stage}</b><small>{event.id} · {event.source}</small></div><p>{event.label}</p><EvidenceLink links={incident.links} eventId={event.id} /></div></div>)}</div></section>
           <div className="right-column">
             <section className="card"><CardTitle icon={<BrainCircuit />} label="INVESTIGATION SUMMARY" title="Evidence-grounded narrative" /><p className="narrative">{incident.summary}</p><div className="grounded"><CheckCircle2 /> Generated from correlated telemetry only</div></section>
             <section className="card"><CardTitle icon={<FileSearch />} label="SEVERITY EVIDENCE" title="Risk score breakdown" /><div className="score-bar"><span style={{ width: `${incident.score}%` }} /></div><div className="factor-list">{incident.factors.length ? incident.factors.map((factor) => <div key={factor.label}><span>{factor.label}</span><b>+{factor.points}</b></div>) : <p>No critical escalation factors found.</p>}</div></section>
@@ -143,4 +143,8 @@ function App() {
 
 function Metric({ label, value, tone }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>current scenario</small></div>; }
 function CardTitle({ icon, label, title }) { return <div className="card-title"><span>{icon}</span><div><p className="section-label">{label}</p><h3>{title}</h3></div></div>; }
+function EvidenceLink({ links, eventId }) {
+  const link = links.find((item) => item.to === eventId);
+  return link ? <em><Link2 size={12}/>{link.reason}</em> : null;
+}
 export default App;

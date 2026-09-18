@@ -10,7 +10,7 @@ from database import save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
 from fastapi.responses import Response
 
-app = FastAPI(title="SentraPixel SOC API", version="0.5.0")
+app = FastAPI(title="SentraPixel SOC API", version="0.6.0")
 
 frontend_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 frontend_origin = os.getenv("FRONTEND_ORIGIN", "").strip().rstrip("/")
@@ -54,7 +54,7 @@ class AnalyzeAlertsRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"status": "online", "service": "SentraPixel correlation engine", "version": "0.5.0"}
+    return {"status": "online", "service": "SentraPixel correlation engine", "version": "0.6.0"}
 
 
 @app.get("/api/scenarios")

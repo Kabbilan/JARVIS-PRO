@@ -1,4 +1,4 @@
-# AEGIS SOC
+# SentraPixel SOC
 
 Explainable autonomous SOC assistant for FC-04. It correlates fragmented security alerts, reconstructs attack chains, scores incident severity, and recommends human-approved response actions.
 
@@ -30,4 +30,3 @@ Open `http://localhost:5173`.
 2. Run correlation.
 3. Inspect alert links, attack chain, severity factors, and timeline.
 4. Review recommended actions and approve or reject them.
-

@@ -77,18 +77,31 @@ def correlation_reason(left, right):
         reasons.append("same device")
     if left["ip"] != "unknown" and left["ip"] == right["ip"]:
         reasons.append("same IP")
+    shared_entity_count = len(reasons)
     gap = minutes(right["time"]) - minutes(left["time"])
-    if 0 <= gap <= 15:
-        reasons.append(f"{gap}-minute gap")
+    if shared_entity_count == 0 or not 0 <= gap <= 15:
+        return ""
+    reasons.append(f"{gap}-minute gap")
     return ", ".join(reasons)
 
 
 def build_links(events):
     links = []
-    for index in range(len(events) - 1):
-        reason = correlation_reason(events[index], events[index + 1])
-        if reason:
-            links.append({"from": events[index]["id"], "to": events[index + 1]["id"], "reason": reason})
+    for right_index in range(1, len(events)):
+        candidates = []
+        for left_index in range(right_index):
+            reason = correlation_reason(events[left_index], events[right_index])
+            if reason:
+                shared_entities = reason.count("same ")
+                gap = minutes(events[right_index]["time"]) - minutes(events[left_index]["time"])
+                candidates.append((shared_entities, -gap, left_index, reason))
+        if candidates:
+            _, _, left_index, reason = max(candidates)
+            links.append({
+                "from": events[left_index]["id"],
+                "to": events[right_index]["id"],
+                "reason": reason,
+            })
     return links
 
 
@@ -132,12 +145,16 @@ def build_result(events, incident_id=None):
     else:
         title = "Benign or Low-Risk Activity"
 
-    stages = [STAGES.get(event["type"], event["type"].replace("_", " ").title()) for event in events]
+    correlated_ids = {link["from"] for link in links} | {link["to"] for link in links}
+    correlated_count = len(correlated_ids) if malicious else 0
+    correlated_events = [event for event in events if event["id"] in correlated_ids]
+    story_events = correlated_events if malicious else events
+    stages = [STAGES.get(event["type"], event["type"].replace("_", " ").title()) for event in story_events]
     summary = (
-        f"AEGIS correlated {len(events)} alerts using identity, device, IP and time evidence. "
+        f"SentraPixel correlated {correlated_count} of {len(events)} alerts using identity, device, IP and time evidence. "
         f"Observed attack progression: {' -> '.join(stages)}."
         if malicious else
-        f"AEGIS analyzed {len(events)} alerts but did not find a high-confidence malicious attack chain."
+        f"SentraPixel analyzed {len(events)} alerts but did not find a high-confidence malicious attack chain."
     )
     actions = (
         ["Disable the affected identity", "Revoke active sessions", "Block the suspicious source IP",
@@ -145,7 +162,7 @@ def build_result(events, incident_id=None):
         if malicious else
         ["Keep the identity under routine monitoring", "Close as benign after analyst verification"]
     )
-    first = events[0]
+    anchor = max(correlated_events or events, key=lambda event: event["base_severity"])
     return {
         "incident_id": incident_id or f"INC-{uuid4().hex[:10].upper()}",
         "title": title, "severity": level, "score": score, "status": "awaiting_review",
@@ -153,14 +170,14 @@ def build_result(events, incident_id=None):
         "events": [{**event, "stage": STAGES.get(event["type"], event["type"].replace("_", " ").title())} for event in events],
         "links": links, "factors": factors,
         "indicators": [
-            {"type": "IP", "value": first["ip"], "status": "suspicious" if malicious else "observed"},
-            {"type": "Identity", "value": first["user"], "status": "compromised" if malicious else "observed"},
-            {"type": "Device", "value": first["device"], "status": "at-risk" if malicious else "observed"},
+            {"type": "IP", "value": anchor["ip"], "status": "suspicious" if malicious else "observed"},
+            {"type": "Identity", "value": anchor["user"], "status": "compromised" if malicious else "observed"},
+            {"type": "Device", "value": anchor["device"], "status": "at-risk" if malicious else "observed"},
         ],
         "recommended_actions": actions,
         "metrics": {
-            "raw_alerts": len(events), "correlated_alerts": len(events) if malicious else 0,
-            "incidents": 1 if malicious else 0, "noise_reduced": 0 if malicious else len(events),
+            "raw_alerts": len(events), "correlated_alerts": correlated_count,
+            "incidents": 1 if malicious else 0, "noise_reduced": len(events) - correlated_count,
         },
     }
 
