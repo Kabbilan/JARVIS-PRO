@@ -1,5 +1,5 @@
 from ai_agent import fallback_investigation, fallback_response_plan, generate_agent_pipeline, generate_investigation, verify_agent_outputs
-from correlation import analyze_events, analyze_scenario
+from correlation import analyze_event_batch, analyze_events, analyze_scenario
 
 
 def test_account_takeover_is_critical():
@@ -97,3 +97,37 @@ def test_verifier_flags_low_evidence_activity():
     verification = verify_agent_outputs(incident, investigation, response_plan)
     assert verification["verdict"] == "needs_review"
     assert verification["warnings"]
+
+
+def test_batch_analysis_creates_independent_incidents_and_keeps_noise_out():
+    alerts = [
+        {"id": "A1", "time": "09:00", "type": "failed_login", "user": "a@corp.io", "ip": "1.1.1.1", "device": "DA"},
+        {"id": "A2", "time": "09:04", "type": "suspicious_login", "user": "a@corp.io", "ip": "1.1.1.1", "device": "DA"},
+        {"id": "A3", "time": "09:08", "type": "privilege_escalation", "user": "a@corp.io", "ip": "1.1.1.1", "device": "DA"},
+        {"id": "B1", "time": "10:00", "type": "sensitive_access", "user": "b@corp.io", "ip": "2.2.2.2", "device": "DB"},
+        {"id": "B2", "time": "10:05", "type": "data_exfiltration", "user": "b@corp.io", "ip": "2.2.2.2", "device": "DB"},
+        {"id": "C1", "time": "11:00", "type": "malware", "user": "c@corp.io", "ip": "3.3.3.3", "device": "DC"},
+        {"id": "C2", "time": "11:03", "type": "c2_connection", "user": "c@corp.io", "ip": "3.3.3.3", "device": "DC"},
+        {"id": "N1", "time": "12:00", "type": "normal_activity", "user": "noise@corp.io", "ip": "10.0.0.9", "device": "DN"},
+    ]
+    result = analyze_event_batch(alerts)
+    assert result["raw_alerts"] == 8
+    assert result["incident_count"] == 3
+    assert result["correlated_alerts"] == 7
+    assert result["uncorrelated_alerts"] == 1
+    assert {item["title"] for item in result["incidents"]} == {
+        "Account Takeover", "Possible Data Exfiltration", "Correlated Malware / C2 Activity"
+    }
+    ids = [item["incident_id"] for item in result["incidents"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_batch_does_not_merge_disconnected_users_devices_or_ips():
+    alerts = [
+        {"id": "X1", "time": "09:00", "type": "data_exfiltration", "user": "x@corp.io", "ip": "4.4.4.4", "device": "DX", "base_severity": 95},
+        {"id": "Y1", "time": "09:01", "type": "privilege_escalation", "user": "y@corp.io", "ip": "5.5.5.5", "device": "DY", "base_severity": 90},
+    ]
+    result = analyze_event_batch(alerts)
+    assert result["incident_count"] == 0
+    assert result["correlated_alerts"] == 0
+    assert result["uncorrelated_alerts"] == 2
