@@ -23,6 +23,7 @@ function App() {
   const [scenarios, setScenarios] = useState(fallbackScenarios);
   const [selected, setSelected] = useState("account-takeover");
   const [incident, setIncident] = useState(null);
+  const [batch, setBatch] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState(0);
   const [review, setReview] = useState(null);
@@ -72,6 +73,7 @@ function App() {
     setInputMode("scenario");
     setSelected(id);
     setIncident(null);
+    setBatch(null);
     setCurrentAlerts(null);
     setInvestigation(null);
     setResponsePlan(null); setVerification(null);
@@ -84,6 +86,7 @@ function App() {
   function switchInputMode(mode) {
     setInputMode(mode);
     setIncident(null);
+    setBatch(null);
     setCurrentAlerts(null);
     setInvestigation(null);
     setResponsePlan(null); setVerification(null);
@@ -112,7 +115,7 @@ function App() {
       setError("Data Exfiltration scenario is waiting for the backend API. Add scenario ID: data-exfiltration.");
       return;
     }
-    setLoading(true); setIncident(null); setInvestigation(null); setResponsePlan(null); setVerification(null); setReview(null); setError(""); setReopenedIncident(false); setView("analysis");
+    setLoading(true); setIncident(null); setBatch(null); setInvestigation(null); setResponsePlan(null); setVerification(null); setReview(null); setError(""); setReopenedIncident(false); setView("analysis");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       let alerts = null;
@@ -127,9 +130,16 @@ function App() {
         body: inputMode === "custom" ? JSON.stringify({ alerts }) : undefined,
       });
       if (!response.ok) throw new Error();
-      setIncident(await response.json()); setApiOnline(true);
+      const result = await response.json();
+      setApiOnline(true);
       setCurrentAlerts(alerts);
-      runInvestigation(alerts);
+      if (inputMode === "custom") {
+        setBatch(result);
+        setView("batch");
+      } else {
+        setIncident(result);
+        runInvestigation(null);
+      }
     } catch (analysisError) {
       if (analysisError.message === "invalid-alerts" || analysisError instanceof SyntaxError) setError("Invalid JSON. Provide a non-empty alert array or an object with an alerts array.");
       else { setError("Correlation engine unavailable. Confirm the FastAPI service is running on port 8000."); setApiOnline(false); }
@@ -146,6 +156,18 @@ function App() {
         headers: custom ? { "Content-Type": "application/json" } : undefined,
         body: custom ? JSON.stringify({ alerts }) : undefined,
       });
+      if (!response.ok) throw new Error();
+      const result = await response.json();
+      setInvestigation(result.investigation); setResponsePlan(result.response_plan); setVerification(result.verification);
+    } catch {
+      setInvestigationError("Investigation Agent response unavailable. The correlated incident remains available below.");
+    } finally { setInvestigating(false); }
+  }
+
+  async function runIncidentInvestigation(incidentId) {
+    setInvestigating(true); setInvestigationError("");
+    try {
+      const response = await fetch(`${API}/api/incidents/${incidentId}/investigate`, { method: "POST" });
       if (!response.ok) throw new Error();
       const result = await response.json();
       setInvestigation(result.investigation); setResponsePlan(result.response_plan); setVerification(result.verification);
@@ -185,6 +207,7 @@ function App() {
       if (!response.ok) throw new Error();
       const result = await response.json();
       setIncident(result); setInvestigation(result.investigation || null); setResponsePlan(result.investigation?.response_plan || null); setVerification(result.investigation?.verification || null); setReopenedIncident(true); setApiOnline(true);
+      if (!result.investigation) runIncidentInvestigation(incidentId);
     } catch {
       setError("Incident details could not be loaded. Return to Incident History and retry."); setApiOnline(false);
     } finally { setLoading(false); }
@@ -221,9 +244,9 @@ function App() {
       <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === null ? "CONNECTING TO ENGINE" : apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === null ? "Verifying production API" : apiOnline === false ? "Backend connection unavailable" : "Rules, evidence, and analyst review active"}</small></div>
     </aside>
     <main>
-      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : view === "analysis" ? "Security Analysis Workspace" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : view === "analysis" ? "Review correlated evidence, risk, AI findings, and response actions in one focused workspace." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
+      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : view === "analysis" ? "Security Analysis Workspace" : view === "batch" ? "Batch Analysis Summary" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : view === "analysis" ? "Review correlated evidence, risk, AI findings, and response actions in one focused workspace." : view === "batch" ? "One upload, independently clustered security incidents, with unrelated alerts kept separate." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} onOpen={openIncident} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
+      {view === "batch" && batch ? <BatchAnalysisSummary batch={batch} onOpen={openIncident} onBack={openCommandCenter} /> : view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} onOpen={openIncident} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -287,6 +310,25 @@ function App() {
       </section>}
     </main>
   </div>;
+}
+
+function BatchAnalysisSummary({ batch, onOpen, onBack }) {
+  return <section className="batch-summary">
+    <div className="batch-toolbar"><div><p className="section-label">CUSTOM JSON / CORRELATION RESULT</p><h2>Independent incidents detected</h2><p>{batch.batch_id} · Disconnected alerts are not allowed to influence another incident.</p></div><button onClick={onBack}><ArrowLeft /> New upload</button></div>
+    <div className="batch-metrics">
+      <Metric label="Raw Alerts" value={batch.raw_alerts} tone="blue" caption="uploaded telemetry" />
+      <Metric label="Incidents Found" value={batch.incident_count} tone="red" caption="independent clusters" />
+      <Metric label="Correlated Alerts" value={batch.correlated_alerts} tone="violet" caption="inside incidents" />
+      <Metric label="Uncorrelated Alerts" value={batch.uncorrelated_alerts} tone="green" caption="kept separate" />
+    </div>
+    {batch.incidents?.length ? <div className="batch-incidents">{batch.incidents.map((item) => <button className="batch-incident-card" key={item.incident_id} onClick={() => onOpen(item.incident_id)}>
+      <div><span className="batch-id">{item.incident_id}</span><span className={`severity-pill ${item.severity}`}>{item.severity}</span></div>
+      <h3>{item.title}</h3>
+      <p>{item.classification_reason}</p>
+      <footer><span><Network /> {item.metrics?.correlated_alerts || item.events?.length || 0} correlated alerts</span><span>Risk {item.score} · Confidence {item.confidence}%</span><ChevronRight /></footer>
+    </button>)}</div> : <div className="history-state"><ShieldCheck /><strong>No correlated malicious incidents found</strong><span>{batch.uncorrelated_alerts} alerts remain uncorrelated and were not forced into an incident.</span></div>}
+    {batch.uncorrelated_alerts > 0 && <div className="batch-noise"><ShieldCheck /><div><strong>{batch.uncorrelated_alerts} alerts isolated from incident scoring</strong><span>These alerts remain available as uncorrelated telemetry. They do not change incident title, severity, confidence, MITRE mapping, or risk score.</span></div></div>}
+  </section>;
 }
 
 function Metric({ label, value, tone, caption = "current scenario" }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{caption}</small></div>; }
