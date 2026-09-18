@@ -419,3 +419,12 @@ main:after{z-index:-1!important;opacity:.65}
 .risk-graph-row>small{font-size:8.5px;line-height:1.4;color:#8195a6}
 @keyframes riskBarGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @media(max-width:560px){.risk-graph-meta{font-size:9px}.risk-evidence-graph{gap:11px}}
+
+
+/* Timed alert evidence graph */
+.alert-time-graph{margin-top:18px;padding-top:15px;border-top:1px solid #e4edf4}.alert-time-axis{display:flex;gap:0;margin-top:14px;overflow-x:auto;padding:2px 2px 12px}
+.alert-time-node{position:relative;min-width:145px;flex:1;padding-right:14px;display:grid;grid-template-rows:auto auto auto auto;justify-items:start;gap:5px}
+.alert-time{font:800 9px 'Space Mono';color:#188dbb}.alert-node{width:13px;height:13px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px #36bce8;z-index:2;background:#36bce8}.alert-node.severity-high{background:#ef5369;box-shadow:0 0 0 2px #ef5369}.alert-node.severity-medium{background:#f1bc4e;box-shadow:0 0 0 2px #f1bc4e}.alert-node.severity-low{background:#38bd8b;box-shadow:0 0 0 2px #38bd8b}
+.alert-connector{position:absolute;top:24px;left:13px;right:-2px;height:2px;background:linear-gradient(90deg,#9fdff2,#c9d9e5);z-index:1}
+.alert-stage{font-size:9px;font-weight:800;color:#344f66}.alert-time-node small{font-size:8px;line-height:1.35;color:#8295a6;max-width:135px}
+@media(max-width:560px){.alert-time-node{min-width:130px}.alert-time-axis{padding-bottom:8px}}
