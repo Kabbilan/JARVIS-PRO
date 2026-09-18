@@ -395,3 +395,9 @@ main:after{z-index:-1!important;opacity:.65}
 .risk-breakdown-card{--risk-c0:#ef5369;--risk-c1:#ff8c58;--risk-c2:#f1bc4e;--risk-c3:#7b70e8;--risk-c4:#25b8dc;--risk-c5:#38bd8b}
 .factor-donut{background:#e8f0f6}.factor-dot-0{background:var(--risk-c0)}.factor-dot-1{background:var(--risk-c1)}.factor-dot-2{background:var(--risk-c2)}.factor-dot-3{background:var(--risk-c3)}.factor-dot-4{background:var(--risk-c4)}.factor-dot-5{background:var(--risk-c5)}
 .risk-legend-row b{display:flex;align-items:baseline;gap:5px;white-space:nowrap}.risk-legend-row b small{font:600 8px 'DM Sans';color:#8a9baa}
+
+
+/* Evidence traceability for every risk factor */
+.risk-factor-name{display:block;font-weight:700;color:#40586d}
+.risk-evidence{display:block!important;margin-top:3px;font:500 8.5px/1.4 'DM Sans'!important;color:#8296a8!important;white-space:normal!important}
+.risk-legend-row{align-items:start!important}
