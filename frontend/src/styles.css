@@ -172,6 +172,31 @@ nav button:hover svg{transform:translateX(3px) scale(1.1);filter:drop-shadow(0 0
 }
 @media(prefers-reduced-motion:reduce){aside:before,.pulse{animation:none!important}}
 
+/* Dedicated analysis workspace */
+.analysis-workspace{display:flex;flex-direction:column;gap:22px;width:100%}
+.analysis-toolbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;padding:14px 16px;background:rgba(255,255,255,.94);border:1px solid #d7e8f3;border-radius:14px;box-shadow:0 10px 32px rgba(38,93,135,.07)}
+.analysis-toolbar>button{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 13px;border:1px solid #c4deec;border-radius:9px;background:#f3faff;color:#24627f;font-weight:700}
+.analysis-toolbar>button:hover{background:#e9f7ff;border-color:#7fcceb;transform:translateX(-2px)}
+.analysis-toolbar>button svg{width:17px}
+.analysis-toolbar>div{display:flex;align-items:center;justify-content:center;gap:10px;min-width:0}
+.analysis-crumb{color:#6d8498;font:700 10px 'Space Mono',monospace;letter-spacing:.08em}
+.analysis-toolbar>div strong{padding-left:10px;border-left:1px solid #d7e7f0;color:#183d58;font:700 11px 'Space Mono',monospace}
+.analysis-status{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid #bcebd7;border-radius:999px;background:#effcf7;color:#17865f;font:700 9px 'Space Mono',monospace;letter-spacing:.06em;white-space:nowrap}
+.analysis-status svg{width:13px}
+.analysis-status.processing{color:#087da9;background:#edf9ff;border-color:#b8e1f2}
+.analysis-workspace>.metrics,.analysis-workspace>.incident-hero,.analysis-workspace>.content-grid,.analysis-workspace>.agent-card,.analysis-workspace>.response-card{margin-top:0}
+@media(max-width:760px){
+ .analysis-toolbar{grid-template-columns:1fr auto;gap:10px}
+ .analysis-toolbar>div{grid-column:1/-1;grid-row:2;justify-content:flex-start}
+ .analysis-status{justify-self:end}
+}
+@media(max-width:480px){
+ .analysis-toolbar{grid-template-columns:1fr}
+ .analysis-toolbar>button{justify-content:center}
+ .analysis-status{justify-self:stretch;justify-content:center}
+ .analysis-toolbar>div{grid-row:auto;flex-wrap:wrap}
+}
+
 
 /* Whole-page motion system */
 main{animation:pageReveal .7s cubic-bezier(.2,.8,.2,1) both}
