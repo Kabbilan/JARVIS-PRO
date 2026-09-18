@@ -389,3 +389,9 @@ main:after{z-index:-1!important;opacity:.65}
 .risk-explain{margin:14px 0 0!important;padding-top:11px;border-top:1px solid #e5eef4;color:#70869a!important;font-size:10px!important;line-height:1.5}
 @media(max-width:1100px){.risk-breakdown{grid-template-columns:110px 1fr}.risk-donut{width:104px}}
 @media(max-width:560px){.risk-breakdown{grid-template-columns:1fr}.risk-donut{margin:auto}.risk-legend-row{font-size:10px}}
+
+
+/* Multi-factor risk composition pie */
+.risk-breakdown-card{--risk-c0:#ef5369;--risk-c1:#ff8c58;--risk-c2:#f1bc4e;--risk-c3:#7b70e8;--risk-c4:#25b8dc;--risk-c5:#38bd8b}
+.factor-donut{background:#e8f0f6}.factor-dot-0{background:var(--risk-c0)}.factor-dot-1{background:var(--risk-c1)}.factor-dot-2{background:var(--risk-c2)}.factor-dot-3{background:var(--risk-c3)}.factor-dot-4{background:var(--risk-c4)}.factor-dot-5{background:var(--risk-c5)}
+.risk-legend-row b{display:flex;align-items:baseline;gap:5px;white-space:nowrap}.risk-legend-row b small{font:600 8px 'DM Sans';color:#8a9baa}
