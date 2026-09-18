@@ -8,7 +8,8 @@ from typing import Any, Literal
 from ai_agent import fallback_investigation, fallback_response_plan, generate_agent_pipeline, generate_investigation, verify_agent_outputs
 from correlation import analyze_event_batch, analyze_events, analyze_scenario, get_scenarios
 from database import get_incident, incident_summary, list_incidents, save_incident, save_investigation, save_review
-from report_generator import generate_incident_report\nfrom normalizer import normalize_upload, UnsupportedAlertSchema
+from report_generator import generate_incident_report
+from normalizer import normalize_upload, UnsupportedAlertSchema
 from fastapi.responses import Response
 
 app = FastAPI(title="SentraPixel SOC API", version="0.6.0")
