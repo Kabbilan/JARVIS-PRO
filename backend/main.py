@@ -8,7 +8,7 @@ from database import save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
 from fastapi.responses import Response
 
-app = FastAPI(title="AEGIS SOC API", version="0.5.0")
+app = FastAPI(title="SentraPixel SOC API", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,7 +46,7 @@ class AnalyzeAlertsRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"status": "online", "service": "AEGIS correlation engine", "version": "0.5.0"}
+    return {"status": "online", "service": "SentraPixel correlation engine", "version": "0.5.0"}
 
 
 @app.get("/api/scenarios")
@@ -113,7 +113,7 @@ def report(scenario_id: str):
         raise HTTPException(status_code=404, detail="Scenario not found")
     investigation = generate_investigation(incident)
     pdf = generate_incident_report(incident, investigation)
-    filename = f"AEGIS-{incident['incident_id']}.pdf"
+    filename = f"SentraPixel-{incident['incident_id']}.pdf"
     return Response(
         content=pdf,
         media_type="application/pdf",
