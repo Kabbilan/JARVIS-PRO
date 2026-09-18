@@ -15,7 +15,7 @@ ALIASES = {
     "base_severity": ("base_severity","severity","priority","risk","risk_score","score"),
     "source": ("source","product","vendor","sensor","provider","service"),
 }
-KNOWN_TYPES={"failed_login","suspicious_login","privilege_escalation","sensitive_access","data_exfiltration","defense_evasion","normal_login","normal_activity","malware","c2_connection"}
+KNOWN_TYPES={"failed_login","suspicious_login","privilege_escalation","sensitive_access","data_exfiltration","defense_evasion","normal_login","normal_activity","malware","c2_connection","phishing","execution"}
 SEVERITY_WORDS={"informational":5,"info":5,"low":20,"medium":50,"moderate":50,"high":75,"critical":95}
 PHRASES={
  "failed login":"failed_login","login failed":"failed_login","authentication failure":"failed_login","brute force":"failed_login",
@@ -26,6 +26,7 @@ PHRASES={
  "defense evasion":"defense_evasion","disable antivirus":"defense_evasion","disable security":"defense_evasion",
  "malware":"malware","ransomware":"malware","trojan":"malware","malicious file":"malware",
  "command and control":"c2_connection","c2":"c2_connection","outbound traffic":"c2_connection","beacon":"c2_connection",
+ "email received":"phishing","phishing":"phishing","malicious invoice":"phishing","process creation":"execution","powershell":"execution","macro executed":"execution","known c2":"c2_connection","network connection":"c2_connection",
  "normal login":"normal_login","successful login":"normal_login","benign":"normal_activity","normal activity":"normal_activity",
 }
 class UnsupportedAlertSchema(ValueError): pass
@@ -124,9 +125,9 @@ def _deep_value(flat, *keys):
 
 def _enrich_nested(event, alert):
     flat = _flatten(alert)
-    source_host = _deep_value(flat, "source_device.hostname", "source.hostname", "src.hostname", "hostname")
-    source_ip = _deep_value(flat, "source_device.ip_address", "source_device.ip", "source.ip", "src.ip", "source_ip", "src_ip")
-    source_user = _deep_value(flat, "source_device.user", "source.user", "actor.user", "username", "user")
+    source_host = _deep_value(flat, "source_device.hostname", "host_info.hostname", "actor.host", "source.hostname", "src.hostname", "hostname")
+    source_ip = _deep_value(flat, "source_device.ip_address", "host_info.ip_address", "actor.ip", "source_device.ip", "source.ip", "src.ip", "source_ip", "src_ip")
+    source_user = _deep_value(flat, "source_device.user", "host_info.user_account", "actor.user", "source.user", "username", "user")
     dest_ip = _deep_value(flat, "destination_device.ip_address", "destination_device.ip", "destination.ip", "dst.ip", "destination_ip", "dst_ip")
     dest_domain = _deep_value(flat, "destination_device.domain", "destination.domain", "dst.domain", "domain")
     if event.get("device") in (None, "unknown"): event["device"] = str(source_host) if source_host else "unknown"
@@ -146,6 +147,10 @@ def _enrich_nested(event, alert):
         "mitre_tactic": _deep_value(flat, "alert_metadata.mitre_tactic", "mitre.tactic", "mitre_tactic"),
         "mitre_technique": _deep_value(flat, "alert_metadata.mitre_technique", "mitre.technique", "mitre_technique"),
         "action_taken": _deep_value(flat, "alert_metadata.action_taken", "action_taken", "disposition"),
+        "incident_key": _deep_value(flat, "incident_id", "case_id", "correlation_id"),
+        "command_line": _deep_value(flat, "attack_details.command_line", "details.command_line", "command_line"),
+        "process_name": _deep_value(flat, "attack_details.process_name", "details.process_name", "process_name"),
+        "threat_intel_match": _deep_value(flat, "details.threat_intel_match", "threat_intel_match"),
     }
     event.update({k: v for k, v in extras.items() if v not in (None, "")})
     return event
@@ -168,6 +173,11 @@ def normalize_uploaded_alert(a,index=0,root=None):
     r.setdefault("source","Unknown");r.setdefault("label",str(_pick(a,"label")[0] or t.replace("_"," ").title()))
     r.setdefault("user","unknown");r.setdefault("ip","unknown");r.setdefault("device","unknown");r.setdefault("resource","Unknown")
     r=_enrich_nested(r,a)
+    # Preserve a shared incident/case ID as correlation evidence, not as the event ID.
+    explicit_event_id,_=_pick(a,"id")
+    if "incident_id" in a and not any(k in a for k in ("id","event_id","alert_id","uuid","uid","eventid")):
+        r["incident_key"]=str(a["incident_id"])
+        raw=json.dumps(a,sort_keys=True,default=str).encode();r["id"]="AUTO-"+hashlib.sha1(raw).hexdigest()[:10].upper()
     if inferred:r["timestamp_inferred"]=True
     if tk in ("semantic_text","security_context") or t=="normal_activity" and _pick(a,"type")[0] not in ("normal_activity","normal_login"):r["type_inferred"]=True
     return r,m
