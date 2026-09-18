@@ -47,6 +47,15 @@ DEFAULT_SEVERITY = {
     "normal_login": 5, "normal_activity": 3,
 }
 
+MITRE_TECHNIQUES = {
+    "failed_login": {"id": "T1110", "name": "Brute Force", "tactic": "Credential Access"},
+    "suspicious_login": {"id": "T1078", "name": "Valid Accounts", "tactic": "Defense Evasion"},
+    "privilege_escalation": {"id": "T1098", "name": "Account Manipulation", "tactic": "Persistence"},
+    "sensitive_access": {"id": "T1213", "name": "Data from Information Repositories", "tactic": "Collection"},
+    "data_exfiltration": {"id": "T1041", "name": "Exfiltration Over C2 Channel", "tactic": "Exfiltration"},
+    "defense_evasion": {"id": "T1562.001", "name": "Impair Defenses", "tactic": "Defense Evasion"},
+}
+
 
 def minutes(value):
     parsed = datetime.strptime(value, "%H:%M")
@@ -163,12 +172,22 @@ def build_result(events, incident_id=None):
         ["Keep the identity under routine monitoring", "Close as benign after analyst verification"]
     )
     anchor = max(correlated_events or events, key=lambda event: event["base_severity"])
+    shared_evidence = sum(reason.count("same ") for reason in (link["reason"] for link in links))
+    confidence = min(99, 35 + len(links) * 12 + shared_evidence * 4) if malicious else max(15, 55 - len(events) * 5)
+    techniques = []
+    for event in events:
+        technique = MITRE_TECHNIQUES.get(event["type"])
+        if technique and not any(item["id"] == technique["id"] for item in techniques):
+            techniques.append({**technique, "evidence": f'{event["id"]}: {event["label"]}'})
     return {
         "incident_id": incident_id or f"INC-{uuid4().hex[:10].upper()}",
         "title": title, "severity": level, "score": score, "status": "awaiting_review",
         "summary": summary,
+        "confidence": confidence,
+        "confidence_basis": f"{len(links)} evidence links across {shared_evidence} shared entity matches",
         "events": [{**event, "stage": STAGES.get(event["type"], event["type"].replace("_", " ").title())} for event in events],
         "links": links, "factors": factors,
+        "mitre_techniques": techniques,
         "indicators": [
             {"type": "IP", "value": anchor["ip"], "status": "suspicious" if malicious else "observed"},
             {"type": "Identity", "value": anchor["user"], "status": "compromised" if malicious else "observed"},
