@@ -31,18 +31,40 @@ def test_invalid_review_decision_rejected():
 
 def test_review_approved(monkeypatch):
     saved = {}
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: {"incident_id": incident_id, "confidence": 85, "severity": "high"})
     monkeypatch.setattr(main, "save_review", lambda incident_id, decision: saved.update(incident_id=incident_id, decision=decision) or True)
-    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved"})
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved", "action": "monitor", "reason": "Continue observation"})
     assert response.status_code == 200
     assert response.json()["decision"] == "approved"
     assert saved == {"incident_id": "INC-TEST", "decision": "approved"}
 
 
 def test_review_save_failure_returns_500(monkeypatch):
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: {"incident_id": incident_id, "confidence": 85, "severity": "high"})
     monkeypatch.setattr(main, "save_review", lambda incident_id, decision: False)
     response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved"})
     assert response.status_code == 500
     assert response.json()["detail"] == "Review could not be saved"
+
+
+def test_permanent_block_is_never_executed(monkeypatch):
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: {"incident_id": incident_id, "confidence": 99, "severity": "critical"})
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved", "action": "permanent_block", "reason": "Block"})
+    assert response.status_code == 409
+    assert "second-party authorization" in response.json()["detail"]
+
+
+def test_low_confidence_temporary_containment_is_blocked(monkeypatch):
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: {"incident_id": incident_id, "confidence": 42, "severity": "medium"})
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved", "action": "temporary_containment", "reason": "Contain", "acknowledged": True})
+    assert response.status_code == 409
+    assert "Low-confidence" in response.json()["detail"]
+
+
+def test_false_positive_requires_reason(monkeypatch):
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: {"incident_id": incident_id, "confidence": 70, "severity": "high"})
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "false_positive", "action": "restore_access"})
+    assert response.status_code == 400
 
 
 def test_incident_history_shape(monkeypatch):
