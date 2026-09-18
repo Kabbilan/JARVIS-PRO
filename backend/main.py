@@ -114,6 +114,7 @@ async def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
     incident = analyze_events([alert.as_event() for alert in payload.alerts])
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
+    save_incident(incident)
     investigation = await investigation_with_timeout(incident)
     save_investigation(incident["incident_id"], investigation)
     return {"incident_id": incident["incident_id"], "investigation": investigation}
@@ -121,7 +122,8 @@ async def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
 
 @app.post("/api/review")
 def review(payload: ReviewRequest):
-    save_review(payload.incident_id, payload.decision)
+    if not save_review(payload.incident_id, payload.decision):
+        raise HTTPException(status_code=500, detail="Review could not be saved")
     return {
         "incident_id": payload.incident_id,
         "decision": payload.decision,
