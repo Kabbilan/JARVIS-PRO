@@ -23,7 +23,7 @@ function App() {
   const [scenarios, setScenarios] = useState(fallbackScenarios);
   const [selected, setSelected] = useState("account-takeover");
   const [incident, setIncident] = useState(null);
-  const [batch, setBatch] = useState(null);
+  const [batch, setBatch] = useState(null);\n  const [analysisReturnView, setAnalysisReturnView] = useState("command");
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState(0);
   const [review, setReview] = useState(null);
@@ -246,7 +246,7 @@ function App() {
     <main>
       <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "live" ? "Live Security Events" : view === "analysis" ? "Security Analysis Workspace" : view === "batch" ? "Batch Analysis Summary" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "live" ? "Monitor incoming SOC telemetry and investigate suspicious activity." : view === "analysis" ? "Review correlated evidence, risk, AI findings, and response actions in one focused workspace." : view === "batch" ? "One upload, independently clustered security incidents, with unrelated alerts kept separate." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "batch" && batch ? <BatchAnalysisSummary batch={batch} onOpen={openIncident} onBack={openCommandCenter} /> : view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} onOpen={openIncident} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
+      {view === "batch" && batch ? <BatchAnalysisSummary batch={batch} onOpen={(incidentId) => openIncident(incidentId, "batch")} onBack={openCommandCenter} /> : view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={openCommandCenter} onOpen={openIncident} /> : view === "live" ? <LiveEvents onAnalyze={openCommandCenter} /> : view === "command" ? <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -260,7 +260,7 @@ function App() {
 
       <section className="empty-state"><div className="scanner"><Radar /></div><p>Telemetry ready</p><span>Choose a scenario or upload alerts. Results will open in the dedicated Analysis workspace.</span></section>
       </> : <section className="analysis-workspace">
-      <div className="analysis-toolbar"><button onClick={openCommandCenter}><ArrowLeft /> Back to Command Center</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
+      <div className="analysis-toolbar"><button onClick={() => { if (analysisReturnView === "batch" && batch) { setView("batch"); window.scrollTo({ top: 0, behavior: "smooth" }); } else if (analysisReturnView === "incidents") openHistory(); else openCommandCenter(); }}><ArrowLeft /> {analysisReturnView === "batch" && batch ? "Back to Batch Summary" : analysisReturnView === "incidents" ? "Back to Incidents" : "Back to Command Center"}</button><div><span className="analysis-crumb">COMMAND CENTER / ANALYSIS</span>{incident && <strong>{incident.incident_id}</strong>}</div><span className={`analysis-status ${loading ? "processing" : "complete"}`}><CircleDot />{loading ? "ANALYSIS IN PROGRESS" : "ANALYSIS COMPLETE"}</span></div>
       {error && <div className="error" role="alert"><XCircle />{error}</div>}
       {loading && <section className="analysis-loader"><div className="loader-visual"><span className="orbit one" /><span className="orbit two" /><BrainCircuit /></div><div><p className="section-label">CORRELATION IN PROGRESS</p><h2>{loadingStages[loadingStage]}</h2><span>SentraPixel is connecting identity, device, IP, and event evidence.</span></div><div className="stage-track">{loadingStages.map((stage, index) => <span key={stage} className={index <= loadingStage ? "complete" : ""} />)}</div></section>}
 
