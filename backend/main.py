@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from typing import Any, Literal
 from ai_agent import fallback_investigation, generate_investigation
 from correlation import analyze_events, analyze_scenario, get_scenarios
-from database import incident_summary, list_incidents, save_incident, save_investigation, save_review
+from database import get_incident, incident_summary, list_incidents, save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
 from fastapi.responses import Response
 
@@ -78,6 +78,28 @@ def scenarios():
 def incidents():
     rows = list_incidents()
     return {"incidents": rows, "summary": incident_summary(rows)}
+
+
+@app.get("/api/incidents/{incident_id}")
+def incident_detail(incident_id: str):
+    incident = get_incident(incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    return incident
+
+
+@app.get("/api/incidents/{incident_id}/report")
+async def incident_report(incident_id: str):
+    incident = get_incident(incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    investigation = incident.get("investigation") or await investigation_with_timeout(incident)
+    pdf = generate_incident_report(incident, investigation)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="SentraPixel-{incident_id}.pdf"'},
+    )
 
 
 @app.post("/api/analyze/{scenario_id}")
