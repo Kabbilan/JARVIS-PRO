@@ -308,10 +308,12 @@ def analyze_event_batch(raw_events):
     return {
         "batch_id": f"BATCH-{uuid4().hex[:10].upper()}",
         "raw_alerts": len(events),
-        "incident_count": len(incidents),
-        "correlated_alerts": len(incident_event_ids),
+        "incident_count": sum(1 for item in incidents if not item.get("standalone")),
+        "standalone_count": sum(1 for item in incidents if item.get("standalone")),
+        "correlated_alerts": sum(len(item.get("events", [])) for item in incidents if not item.get("standalone")),
         "uncorrelated_alerts": len(uncorrelated),
-        "incidents": incidents,
+        "incidents": [item for item in incidents if not item.get("standalone")],
+        "standalone_threats": [item for item in incidents if item.get("standalone")],
         "uncorrelated": uncorrelated,
     }
 
