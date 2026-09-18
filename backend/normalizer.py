@@ -5,7 +5,7 @@ import hashlib, json, re, os
 
 ALIASES = {
     "timestamp": ("timestamp","event_time","datetime","time","date","created_at","created","occurred_at","observed_at","first_seen","last_seen","start_time"),
-    "id": ("id","event_id","alert_id","incident_id","uuid","uid","eventid"),
+    "id": ("id","event_id","alert_id","uuid","uid","eventid"),
     "type": ("type","action","event_type","category","event_name","name","rule_name","signature","alert_type","threat_type"),
     "ip": ("ip","source_ip","src_ip","client_ip","remote_ip","ip_address"),
     "resource": ("resource","destination_ip","dst_ip","destination","target","target_ip","url","domain","file"),
@@ -27,6 +27,12 @@ PHRASES={
  "malware":"malware","ransomware":"malware","trojan":"malware","malicious file":"malware",
  "command and control":"c2_connection","c2":"c2_connection","outbound traffic":"c2_connection","beacon":"c2_connection",
  "email received":"phishing","phishing":"phishing","malicious invoice":"phishing","process creation":"execution","powershell":"execution","macro executed":"execution","known c2":"c2_connection","network connection":"c2_connection",
+ "credential stuffing":"failed_login","password spray":"failed_login","login anomaly":"suspicious_login",
+ "file access":"sensitive_access","database dump":"sensitive_access","archive created":"sensitive_access",
+ "dns tunneling":"data_exfiltration","large upload":"data_exfiltration","mass download":"data_exfiltration",
+ "security disabled":"defense_evasion","tamper":"defense_evasion","clear logs":"defense_evasion","shadow deletion":"defense_evasion",
+ "malicious macro":"execution","script execution":"execution","command shell":"execution","cmd.exe":"execution",
+ "callback":"c2_connection","known_c2":"c2_connection","remote access":"c2_connection",
  "normal login":"normal_login","successful login":"normal_login","benign":"normal_activity","normal activity":"normal_activity",
 }
 class UnsupportedAlertSchema(ValueError): pass
@@ -99,7 +105,8 @@ def _nearest_time(obj, root):
 
 
 def _flatten(obj, prefix="", out=None):
-    out = out or {}
+    if out is None:
+        out = {}
     if isinstance(obj, dict):
         for key, value in obj.items():
             path = f"{prefix}.{key}" if prefix else str(key)
