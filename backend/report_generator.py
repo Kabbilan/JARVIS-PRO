@@ -147,6 +147,8 @@ def generate_incident_report(incident: dict[str, Any], investigation: dict[str, 
     ]], colWidths=[43.5 * mm] * 4, style=TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)]))
 
     story = [hero, Spacer(1, 6 * mm), cards, Spacer(1, 6 * mm), Paragraph("EXECUTIVE SUMMARY", styles["SectionLabel"]), Paragraph(incident.get("summary", "No summary available."), styles["BodySmall"]), Spacer(1, 2 * mm)]
+    if incident.get("classification_reason"):
+        story.extend([Table([[Paragraph(f"<b>Classification:</b> {incident.get('classification', 'analysis_result').replace('_', ' ').title()}", styles["Muted"]), Paragraph(f"<b>Reason:</b> {incident['classification_reason']}", styles["Muted"])]], colWidths=[52 * mm, 122 * mm], style=TableStyle([("BACKGROUND", (0, 0), (-1, -1), HexColor("#FFF8E9") if incident.get("classification") == "uncorrelated_high_risk_signal" else PALE), ("BOX", (0, 0), (-1, -1), .5, LINE_COLOR), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("PADDING", (0, 0), (-1, -1), 6)])), Spacer(1, 2 * mm)])
     story.extend([
         Table([[Paragraph(f"<b>Status:</b> {incident.get('status', 'open').replace('_', ' ').title()}", styles["Muted"]), Paragraph(f"<b>Analyst decision:</b> {decision}", styles["Muted"]), Paragraph(f"<b>Verification:</b> {verdict.replace('_', ' ').title()}", styles["Muted"])]], colWidths=[58 * mm] * 3, style=TableStyle([("BACKGROUND", (0, 0), (-1, -1), PALE), ("BOX", (0, 0), (-1, -1), .5, LINE_COLOR), ("PADDING", (0, 0), (-1, -1), 6)])),
         Spacer(1, 5 * mm), Paragraph("RISK INTELLIGENCE", styles["SectionLabel"]),
