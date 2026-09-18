@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileJson, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, SearchCheck, ShieldCheck, Upload, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileJson, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, RefreshCw, SearchCheck, Server, ShieldCheck, Upload, Wifi, XCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const scenarioCatalog = [
@@ -18,6 +18,89 @@ const sampleAlerts = JSON.stringify([
   { id: "SIEM-002", time: "09:04", source: "Identity", type: "suspicious_login", label: "Successful login from unusual location", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042", base_severity: 45 },
   { id: "SIEM-003", time: "09:09", source: "Firewall", type: "data_exfiltration", label: "Large outbound transfer detected", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042", base_severity: 88 }
 ], null, 2);
+
+
+const demoEventTemplates = [
+  { severity: "critical", type: "credential_access", source: "Identity", title: "Impossible travel sign-in accepted", description: "A successful sign-in followed repeated failures from a new location.", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042" },
+  { severity: "high", type: "data_exfiltration", source: "DLP", title: "Large outbound transfer detected", description: "Sensitive archive volume exceeded the normal user baseline.", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042" },
+  { severity: "high", type: "privilege_escalation", source: "EDR", title: "Suspicious privilege escalation", description: "A user process attempted to gain elevated local privileges.", user: "analyst@company.com", ip: "10.20.4.18", device: "LAP-042" },
+  { severity: "medium", type: "malware_behavior", source: "Endpoint", title: "Encoded PowerShell activity", description: "Endpoint telemetry observed an encoded PowerShell command chain.", user: "svc-reports", ip: "10.20.8.31", device: "FIN-WS-19" },
+  { severity: "medium", type: "network_anomaly", source: "Firewall", title: "Unusual outbound destination", description: "A workstation contacted an external destination not seen in the recent baseline.", user: "jlee", ip: "10.20.14.12", device: "OPS-WS-07" },
+  { severity: "low", type: "authentication", source: "Identity", title: "Repeated password failures", description: "Multiple failed sign-ins were observed before a normal authentication.", user: "maria@company.com", ip: "203.0.113.44", device: "HR-LAP-08" },
+  { severity: "low", type: "email_security", source: "Email Gateway", title: "Suspicious attachment quarantined", description: "The gateway quarantined an attachment before delivery.", user: "finance@company.com", ip: "192.0.2.61", device: "MAIL-GW-02" },
+];
+
+function normalizeSeverity(value) {
+  if (typeof value === "number") {
+    if (value >= 80) return "critical";
+    if (value >= 60) return "high";
+    if (value >= 35) return "medium";
+    return "low";
+  }
+  const severity = String(value || "low").toLowerCase();
+  if (["critical", "high", "medium", "low"].includes(severity)) return severity;
+  if (severity === "warning" || severity === "warn") return "medium";
+  return "low";
+}
+
+function normalizeEventTimestamp(value, index = 0) {
+  if (typeof value === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
+    const [hours, minutes, seconds = "0"] = value.split(":").map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, seconds, 0);
+    return date.toISOString();
+  }
+  const parsed = value ? new Date(value) : new Date(Date.now() - index * 1000);
+  return Number.isNaN(parsed.getTime()) ? new Date(Date.now() - index * 1000).toISOString() : parsed.toISOString();
+}
+
+function normalizeLiveEvent(item, index = 0) {
+  const timestamp = normalizeEventTimestamp(item.timestamp || item.created_at || item.time, index);
+  const severity = normalizeSeverity(item.severity ?? item.base_severity ?? item.score ?? item.risk_score);
+  return {
+    id: String(item.id || item.event_id || item.alert_id || `EVT-${Date.parse(timestamp) || Date.now()}-${index}`),
+    timestamp,
+    sortTime: Date.parse(timestamp) || Date.now() - index,
+    severity,
+    type: String(item.type || item.alert_type || item.event_type || item.stage || "security_alert"),
+    source: String(item.source || item.product || item.vendor || item.sensor || "SOC Sensor"),
+    title: String(item.title || item.label || item.message || item.description || "Security event detected"),
+    description: String(item.description || item.details || item.message || item.label || "No additional event description was supplied."),
+    user: item.user || item.username || item.account || "",
+    ip: item.ip || item.source_ip || item.src_ip || "",
+    device: item.device || item.hostname || item.host || "",
+    raw: item,
+  };
+}
+
+function createDemoEvent(templateIndex = 0, offsetSeconds = 0) {
+  const template = demoEventTemplates[templateIndex % demoEventTemplates.length];
+  const timestamp = new Date(Date.now() - offsetSeconds * 1000).toISOString();
+  return normalizeLiveEvent({
+    ...template,
+    id: `DEMO-${Date.parse(timestamp)}-${templateIndex}`,
+    timestamp,
+  });
+}
+
+function createDemoSeedEvents() {
+  const offsets = [0, 18, 43, 76, 118, 164, 225];
+  return offsets.map((offset, index) => createDemoEvent(index, offset));
+}
+
+function createDemoIncomingEvent() {
+  const slot = Math.floor(Date.now() / 4500) % demoEventTemplates.length;
+  return createDemoEvent(slot, 0);
+}
+
+function formatEventType(value) {
+  return String(value || "security alert").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatEventTimestamp(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value || "-") : date.toLocaleString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "short" });
+}
 
 function App() {
   const [scenarios, setScenarios] = useState(fallbackScenarios);
@@ -42,6 +125,10 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [historySummary, setHistorySummary] = useState({ total: 0, critical: 0, approved: 0, pending: 0, noise_reduction_percent: 0 });
+  const [liveEvents, setLiveEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState("");
+  const [streamMode, setStreamMode] = useState("connecting");
 
   useEffect(() => {
     fetch(`${API}/api/scenarios`).then((response) => {
@@ -57,6 +144,19 @@ function App() {
     const timer = window.setInterval(() => setLoadingStage((current) => Math.min(current + 1, loadingStages.length - 1)), 650);
     return () => window.clearInterval(timer);
   }, [loading]);
+
+  useEffect(() => {
+    if (view !== "events") return undefined;
+    loadLiveEvents({ silent: liveEvents.length > 0 });
+    const pollTimer = window.setInterval(() => loadLiveEvents({ silent: true }), 12000);
+    const simulationTimer = streamMode === "demo" ? window.setInterval(() => {
+      setLiveEvents((current) => [createDemoIncomingEvent(), ...current].slice(0, 80));
+    }, 4500) : null;
+    return () => {
+      window.clearInterval(pollTimer);
+      if (simulationTimer) window.clearInterval(simulationTimer);
+    };
+  }, [view, streamMode]);
 
   const selectedMeta = useMemo(() => scenarios.find((scenario) => scenario.id === selected), [scenarios, selected]);
   const availableScenarioIds = new Set(scenarios.map((scenario) => scenario.id));
@@ -82,6 +182,37 @@ function App() {
     setReview(null);
     setReportError("");
     setError("");
+  }
+
+  async function loadLiveEvents({ silent = false } = {}) {
+    if (!silent) setEventsLoading(true);
+    try {
+      const response = await fetch(`${API}/api/events`, { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("events-endpoint-unavailable");
+      const payload = await response.json();
+      const rawEvents = Array.isArray(payload) ? payload : payload.events ?? payload.alerts ?? payload.data;
+      if (!Array.isArray(rawEvents)) throw new Error("invalid-events-payload");
+      const normalized = rawEvents.map(normalizeLiveEvent).sort((a, b) => b.sortTime - a.sortTime);
+      setLiveEvents(normalized);
+      setEventsError("");
+      setStreamMode("live");
+      setApiOnline(true);
+    } catch {
+      setStreamMode("demo");
+      setEventsError("Live events endpoint is unavailable. Demo stream is active and will switch to the backend automatically when /api/events becomes available.");
+      setLiveEvents((current) => current.length ? current : createDemoSeedEvents());
+    } finally {
+      if (!silent) setEventsLoading(false);
+    }
+  }
+
+  function openLiveEvents() {
+    setView("events");
+  }
+
+  function openInvestigation() {
+    setView("command");
+    window.setTimeout(() => document.getElementById("investigation-agent")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   }
 
   async function runAnalysis() {
@@ -177,13 +308,13 @@ function App() {
   return <div className="app-shell">
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
-      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button><BrainCircuit /> AI Investigation</button></nav>
+      <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button className={view === "events" ? "active" : ""} onClick={openLiveEvents}><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button onClick={openInvestigation}><BrainCircuit /> AI Investigation</button></nav>
       <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === null ? "CONNECTING TO ENGINE" : apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === null ? "Verifying production API" : apiOnline === false ? "Backend connection unavailable" : "Rules, evidence, and analyst review active"}</small></div>
     </aside>
     <main>
-      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
+      <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : view === "events" ? "Live Security Events" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : view === "events" ? "Monitor incoming SOC alerts, triage severity, and inspect event evidence in real time." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : <>
+      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : view === "events" ? <LiveEvents events={liveEvents} loading={eventsLoading} error={eventsError} mode={streamMode} onRefresh={() => loadLiveEvents()} onBack={() => setView("command")} /> : <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -209,7 +340,7 @@ function App() {
             <section className="card"><CardTitle icon={<Network />} label="SUSPICIOUS INDICATORS" title="Entities under investigation" /><div className="indicators">{incident.indicators.map((item) => <div key={item.type}><span>{item.type}</span><strong>{item.value}</strong><em>{item.status}</em></div>)}</div></section>
           </div>
         </div>
-        <section className="card agent-card">
+        <section className="card agent-card" id="investigation-agent">
           <CardTitle icon={<BrainCircuit />} label="GEMINI INVESTIGATION AGENT" title="AI-assisted incident investigation" />
           {investigating && <div className="agent-loading"><LoaderCircle className="button-spinner" /><div><strong>Investigating correlated evidence</strong><span>Building a grounded narrative and analyst next steps.</span></div></div>}
           {investigationError && <div className="agent-error"><AlertTriangle />{investigationError}<button onClick={() => runInvestigation()}>Retry</button></div>}
@@ -232,6 +363,89 @@ function EvidenceLink({ links, eventId }) {
   const link = links.find((item) => item.to === eventId);
   return link ? <em><Link2 size={12}/>{link.reason}</em> : null;
 }
+
+function LiveEvents({ events, loading, error, mode, onRefresh, onBack }) {
+  const [query, setQuery] = useState("");
+  const [severity, setSeverity] = useState("all");
+  const [source, setSource] = useState("all");
+  const [selectedId, setSelectedId] = useState("");
+
+  const sources = useMemo(() => [...new Set(events.map((event) => event.source).filter(Boolean))].sort(), [events]);
+  const filtered = useMemo(() => [...events]
+    .sort((a, b) => b.sortTime - a.sortTime)
+    .filter((event) => {
+      const searchable = `${event.id} ${event.title} ${event.type} ${event.source} ${event.user} ${event.ip} ${event.device}`.toLowerCase();
+      const matchesQuery = searchable.includes(query.trim().toLowerCase());
+      const matchesSeverity = severity === "all" || event.severity === severity;
+      const matchesSource = source === "all" || event.source === source;
+      return matchesQuery && matchesSeverity && matchesSource;
+    }), [events, query, severity, source]);
+
+  const selectedEvent = events.find((event) => event.id === selectedId) || null;
+  const criticalCount = events.filter((event) => event.severity === "critical").length;
+  const elevatedCount = events.filter((event) => ["critical", "high"].includes(event.severity)).length;
+
+  return <section className="live-events-panel">
+    <div className="live-events-heading">
+      <div><p className="section-label">REAL-TIME TELEMETRY</p><h2>Security event stream</h2><span>Newest alerts stay at the top. Select any event to inspect its full context.</span></div>
+      <div className="stream-actions">
+        <span className={`stream-badge ${mode}`}>{mode === "live" ? <Wifi /> : mode === "demo" ? <Activity /> : <LoaderCircle className="button-spinner" />}{mode === "live" ? "LIVE API" : mode === "demo" ? "DEMO STREAM" : "CONNECTING"}</span>
+        <button onClick={onRefresh} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" /> : <RefreshCw />} Refresh</button>
+        <button onClick={onBack}>Command Center</button>
+      </div>
+    </div>
+
+    {error && <div className="stream-notice" role="status"><AlertTriangle /><div><strong>Live source not connected</strong><span>{error}</span></div></div>}
+
+    {!loading && events.length > 0 && <div className="live-metrics">
+      <Metric label="Events in stream" value={events.length} tone="blue" caption="latest buffer" />
+      <Metric label="Critical" value={criticalCount} tone="red" caption="highest priority" />
+      <Metric label="High + critical" value={elevatedCount} tone="violet" caption="needs triage" />
+      <Metric label="Sources" value={sources.length} tone="green" caption="reporting sensors" />
+    </div>}
+
+    <div className="live-filterbar">
+      <label className="event-search"><SearchCheck /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search ID, type, source, user, IP..." /></label>
+      <select value={severity} onChange={(event) => setSeverity(event.target.value)} aria-label="Filter by severity"><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+      <select value={source} onChange={(event) => setSource(event.target.value)} aria-label="Filter by source"><option value="all">All sources</option>{sources.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+      <span>{filtered.length} shown</span>
+    </div>
+
+    {loading && !events.length ? <div className="live-state"><LoaderCircle className="button-spinner" /><strong>Connecting to event stream</strong><span>Checking the backend for incoming SOC telemetry.</span></div>
+      : !events.length ? <div className="live-state"><Server /><strong>No events received yet</strong><span>The live endpoint is connected but the event stream is currently empty.</span></div>
+      : !filtered.length ? <div className="live-state compact"><SearchCheck /><strong>No matching events</strong><span>Change the search text or filters to show more alerts.</span></div>
+      : <div className={`live-events-layout ${selectedEvent ? "has-selection" : ""}`}>
+        <div className="live-event-list" role="list" aria-label="Security events">
+          {filtered.map((event) => <button key={event.id} type="button" role="listitem" className={`live-event-row ${selectedId === event.id ? "selected" : ""}`} onClick={() => setSelectedId(event.id)}>
+            <span className={`event-severity-dot ${event.severity}`} />
+            <span className="live-event-copy">
+              <span className="event-topline"><span className={`severity-pill ${event.severity}`}>{event.severity}</span><strong>{event.title}</strong></span>
+              <span className="event-meta"><span>{formatEventType(event.type)}</span><span>{event.source}</span><span>{formatEventTimestamp(event.timestamp)}</span></span>
+            </span>
+            <ChevronRight className="event-chevron" />
+          </button>)}
+        </div>
+
+        <div className={`event-detail-card ${selectedEvent ? "open" : ""}`}>
+          {selectedEvent ? <>
+            <div className="event-detail-heading"><div><p className="section-label">EVENT DETAILS</p><h3>{selectedEvent.title}</h3></div><span className={`severity-pill ${selectedEvent.severity}`}>{selectedEvent.severity}</span></div>
+            <div className="event-detail-grid">
+              <div><span>Event ID</span><strong>{selectedEvent.id}</strong></div>
+              <div><span>Timestamp</span><strong>{formatEventTimestamp(selectedEvent.timestamp)}</strong></div>
+              <div><span>Alert type</span><strong>{formatEventType(selectedEvent.type)}</strong></div>
+              <div><span>Source</span><strong>{selectedEvent.source}</strong></div>
+              <div><span>User</span><strong>{selectedEvent.user || "Not supplied"}</strong></div>
+              <div><span>Source IP</span><strong>{selectedEvent.ip || "Not supplied"}</strong></div>
+              <div><span>Device</span><strong>{selectedEvent.device || "Not supplied"}</strong></div>
+            </div>
+            <div className="event-description"><span>Evidence summary</span><p>{selectedEvent.description}</p></div>
+            <details className="raw-event"><summary>Raw event payload</summary><pre>{JSON.stringify(selectedEvent.raw, null, 2)}</pre></details>
+          </> : <div className="event-detail-empty"><Activity /><strong>Select an event</strong><span>Click any alert in the stream to inspect its source, timestamp, entities, and raw payload.</span></div>}
+        </div>
+      </div>}
+  </section>;
+}
+
 function IncidentHistory({ incidents, summary, loading, error, onRefresh, onBack }) {
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState("all");
