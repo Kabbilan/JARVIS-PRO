@@ -39,13 +39,13 @@ STAGES = {
     "privilege_escalation": "Privilege Escalation", "sensitive_access": "Collection",
     "data_exfiltration": "Data Exfiltration", "defense_evasion": "Defense Evasion",
     "normal_login": "Verified Login", "normal_activity": "Normal Activity",
-    "malware": "Execution", "c2_connection": "Command and Control",
+    "malware": "Execution", "phishing": "Initial Access", "execution": "Execution", "c2_connection": "Command and Control",
 }
 
 DEFAULT_SEVERITY = {
     "failed_login": 15, "suspicious_login": 40, "privilege_escalation": 60,
     "sensitive_access": 65, "data_exfiltration": 85, "defense_evasion": 70,
-    "normal_login": 5, "normal_activity": 3, "malware": 75, "c2_connection": 80,
+    "normal_login": 5, "normal_activity": 3, "malware": 75, "phishing": 60, "execution": 75, "c2_connection": 80,
 }
 
 ATTACK_RELATIONSHIPS = {
@@ -55,6 +55,10 @@ ATTACK_RELATIONSHIPS = {
     ("sensitive_access", "data_exfiltration"),
     ("data_exfiltration", "defense_evasion"),
     ("malware", "c2_connection"),
+    ("phishing", "execution"),
+    ("execution", "c2_connection"),
+    ("c2_connection", "privilege_escalation"),
+    ("execution", "privilege_escalation"),
 }
 
 MITRE_TECHNIQUES = {
@@ -103,6 +107,8 @@ def normalize_event(event, index):
 
 def correlation_reason(left, right):
     reasons = []
+    if left.get("incident_key") and left.get("incident_key") == right.get("incident_key"):
+        reasons.append("same incident/case ID")
     if left["user"] != "unknown" and left["user"] == right["user"]:
         reasons.append("same user")
     if left["device"] != "unknown" and left["device"] == right["device"]:
