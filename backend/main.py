@@ -1,10 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Literal
-from correlation import analyze_scenario, get_scenarios
+from pydantic import BaseModel, Field
+from typing import Any, Literal
+from correlation import analyze_events, analyze_scenario, get_scenarios
 
-app = FastAPI(title="AEGIS SOC API", version="0.1.0")
+app = FastAPI(title="AEGIS SOC API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,9 +20,29 @@ class ReviewRequest(BaseModel):
     decision: Literal["approved", "rejected"]
 
 
+class RawAlert(BaseModel):
+    id: str | None = None
+    time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    source: str | None = None
+    type: str
+    label: str | None = None
+    user: str | None = None
+    ip: str | None = None
+    device: str | None = None
+    resource: str | None = None
+    base_severity: int | None = Field(default=None, ge=0, le=100)
+
+    def as_event(self) -> dict[str, Any]:
+        return self.model_dump(exclude_none=True)
+
+
+class AnalyzeAlertsRequest(BaseModel):
+    alerts: list[RawAlert] = Field(min_length=1, max_length=500)
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "online", "service": "AEGIS correlation engine"}
+    return {"status": "online", "service": "AEGIS correlation engine", "version": "0.2.0"}
 
 
 @app.get("/api/scenarios")
@@ -38,6 +58,14 @@ def analyze(scenario_id: str):
     return result
 
 
+@app.post("/api/analyze-alerts")
+def analyze_raw_alerts(payload: AnalyzeAlertsRequest):
+    result = analyze_events([alert.as_event() for alert in payload.alerts])
+    if not result:
+        raise HTTPException(status_code=400, detail="No valid alerts supplied")
+    return result
+
+
 @app.post("/api/review")
 def review(payload: ReviewRequest):
     return {
@@ -47,4 +75,3 @@ def review(payload: ReviewRequest):
         if payload.decision == "approved"
         else "Response plan rejected; incident remains under analyst review",
     }
-
