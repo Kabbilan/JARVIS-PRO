@@ -27,6 +27,10 @@ function App() {
   const [loadingStage, setLoadingStage] = useState(0);
   const [review, setReview] = useState(null);
   const [reviewing, setReviewing] = useState("");
+  const [safetyGate, setSafetyGate] = useState(false);
+  const [containmentAction, setContainmentAction] = useState("monitor");
+  const [reviewReason, setReviewReason] = useState("");
+  const [impactAcknowledged, setImpactAcknowledged] = useState(false);
   const [investigation, setInvestigation] = useState(null);
   const [investigating, setInvestigating] = useState(false);
   const [investigationError, setInvestigationError] = useState("");
@@ -150,13 +154,14 @@ function App() {
     } finally { setInvestigating(false); }
   }
 
-  async function submitReview(decision) {
+  async function submitReview(decision, action = containmentAction) {
     setReviewing(decision); setError("");
     try {
-      const response = await fetch(`${API}/api/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ incident_id: incident.incident_id, decision }) });
-      if (!response.ok) throw new Error();
+      const response = await fetch(`${API}/api/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ incident_id: incident.incident_id, decision, action, reason: reviewReason, acknowledged: impactAcknowledged }) });
+      if (!response.ok) throw new Error((await response.json()).detail || "Review failed");
       setReview(await response.json());
-    } catch { setError("Review action could not be saved. Check the backend connection and try again."); }
+      setSafetyGate(false);
+    } catch (reviewError) { setError(reviewError.message || "Review action could not be saved. Check the backend connection and try again."); }
     finally { setReviewing(""); }
   }
 
@@ -262,7 +267,22 @@ function App() {
           {responsePlan && <article className="card planner-card"><CardTitle icon={<ListChecks />} label="RESPONSE PLANNER AGENT" title="Containment and recovery plan" /><div className="agent-meta"><span className={`priority ${responsePlan.priority}`}>{responsePlan.priority} priority</span><span className="provider-badge">{responsePlan.provider === "gemini" ? "GEMINI GENERATED" : "DETERMINISTIC FALLBACK"}</span></div><div className="plan-columns"><div><p className="agent-label">IMMEDIATE ACTIONS</p><ol>{responsePlan.immediate_actions.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div><div><p className="agent-label">PRESERVE EVIDENCE</p><ol>{responsePlan.evidence_to_preserve.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div><div><p className="agent-label">RECOVERY</p><ol>{responsePlan.recovery_steps.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div></div><div className="approval-lock"><LockKeyhole /> Plan only — human approval required before execution</div></article>}
           {verification && <article className={`card verifier-card ${verification.verdict}`}><CardTitle icon={<ShieldCheck />} label="INDEPENDENT VERIFIER" title="Evidence and safety validation" /><div className="verification-score"><strong>{verification.checks_passed}/{verification.checks_total}</strong><div><span>{verification.verdict.replace("_", " ")}</span><small>{verification.provider === "evidence-policy" ? "DETERMINISTIC EVIDENCE CHECK" : "AI VERIFIED"}</small></div></div><div className="verification-list">{verification.supported_checks.map((item, index) => <p className="passed" key={`${item}-${index}`}><CheckCircle2 />{item}</p>)}{verification.warnings.map((item, index) => <p className="warning" key={`${item}-${index}`}><AlertTriangle />{item}</p>)}</div></article>}
         </section>}
-        <section className="card response-card"><div className="response-heading"><CardTitle icon={<LockKeyhole />} label="HUMAN-IN-THE-LOOP" title="Recommended containment plan" /><button className="report-button" onClick={downloadReport} disabled={reporting}>{reporting ? <LoaderCircle className="button-spinner" /> : <Download />}{reporting ? "Generating report" : "Download incident report"}</button></div><div className="actions">{(responsePlan?.immediate_actions || incident.recommended_actions).map((action, index) => <div key={action}><span>{String(index + 1).padStart(2, "0")}</span>{action}</div>)}</div>{reportError && <div className="error" role="alert"><XCircle />{reportError}</div>}{!review ? <div className="review-buttons"><button className="reject" onClick={() => submitReview("rejected")} disabled={Boolean(reviewing)}>{reviewing === "rejected" ? <LoaderCircle className="button-spinner" /> : <XCircle />} Reject plan</button><button className="approve" onClick={() => submitReview("approved")} disabled={Boolean(reviewing)}>{reviewing === "approved" ? <LoaderCircle className="button-spinner" /> : <CheckCircle2 />} Approve simulated response</button></div> : <div className={`review-result ${review.decision}`}>{review.decision === "approved" ? <CheckCircle2 /> : <XCircle />}{review.message}</div>}</section>
+        <section className="card response-card">
+          <div className="response-heading"><CardTitle icon={<LockKeyhole />} label="HUMAN-IN-THE-LOOP" title="Safe containment decision" /><button className="report-button" onClick={downloadReport} disabled={reporting}>{reporting ? <LoaderCircle className="button-spinner" /> : <Download />}{reporting ? "Generating report" : "Download incident report"}</button></div>
+          <div className="actions">{(responsePlan?.immediate_actions || incident.recommended_actions).map((action, index) => <div key={action}><span>{String(index + 1).padStart(2, "0")}</span>{action}</div>)}</div>
+          <div className="safety-policy"><ShieldCheck /><div><strong>Permanent blocking is disabled</strong><span>SentraPixel permits monitoring or reversible temporary containment only. Permanent action requires separate second-party authorization.</span></div></div>
+          {reportError && <div className="error" role="alert"><XCircle />{reportError}</div>}
+          {!review && !safetyGate && <div className="review-buttons"><button className="reject" onClick={() => setSafetyGate(true)}><XCircle /> Review as false positive</button><button className="approve" onClick={() => { setContainmentAction((incident.confidence || 0) < 60 ? "monitor" : "temporary_containment"); setSafetyGate(true); }}><LockKeyhole /> Open safety gate</button></div>}
+          {!review && safetyGate && <div className="containment-gate">
+            <div className="impact-preview"><div><span>AI confidence</span><strong>{incident.confidence || 0}%</strong></div><div><span>Risk severity</span><strong>{incident.severity}</strong></div><div><span>Potential impact</span><strong>{containmentAction === "temporary_containment" ? "Access interruption" : "No service interruption"}</strong></div></div>
+            <label>Safe response action<select value={containmentAction} onChange={(event) => { setContainmentAction(event.target.value); setImpactAcknowledged(false); }}><option value="monitor">Monitor only</option><option value="temporary_containment" disabled={(incident.confidence || 0) < 60}>Temporary containment (15 min)</option><option value="permanent_block" disabled>Permanent block — second approval required</option></select></label>
+            <label>Analyst reason<textarea value={reviewReason} onChange={(event) => setReviewReason(event.target.value)} placeholder="Enter the evidence or business context behind this decision" /></label>
+            {containmentAction === "temporary_containment" && <label className="impact-check"><input type="checkbox" checked={impactAcknowledged} onChange={(event) => setImpactAcknowledged(event.target.checked)} /> I reviewed the affected identity/device and accept the temporary service impact. Rollback remains available.</label>}
+            {(incident.confidence || 0) < 60 && <div className="confidence-warning"><AlertTriangle /> Low confidence: containment is locked. Monitor or mark this case as a false positive.</div>}
+            <div className="review-buttons"><button className="reject" onClick={() => submitReview("false_positive", "restore_access")} disabled={Boolean(reviewing) || !reviewReason.trim()}>{reviewing === "false_positive" ? <LoaderCircle className="button-spinner" /> : <XCircle />} Mark false positive & restore</button><button onClick={() => setSafetyGate(false)}>Cancel</button><button className="approve" onClick={() => submitReview("approved")} disabled={Boolean(reviewing) || !reviewReason.trim() || (containmentAction === "temporary_containment" && !impactAcknowledged)}>{reviewing === "approved" ? <LoaderCircle className="button-spinner" /> : <CheckCircle2 />} Confirm safe action</button></div>
+          </div>}
+          {review && <div className={`review-result ${review.decision}`}>{review.decision === "approved" ? <CheckCircle2 /> : <XCircle />}<div><strong>{review.message}</strong><span>{review.reason || "Decision recorded in the incident audit trail."}</span></div></div>}
+        </section>
       </>}
       </section>}
     </main>
