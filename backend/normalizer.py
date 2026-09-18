@@ -198,54 +198,53 @@ def _ai_normalize(payload):
 
 
 def normalize_upload(payload:Any):
-    if not isinstance(payload,(dict,list)):raise UnsupportedAlertSchema("Valid JSON, but it does not contain objects that can be normalized.")
-    objects=list(_walk(payload))
-    # Prefer leaf/event objects, avoiding report/container dictionaries when children contain events.
-    candidates=[]
-    for o in objects:
-        child_dicts=[x for v in o.values() if isinstance(v,(dict,list)) for x in _walk(v)]
-        has_event_child=any(_infer_type(x)[0] for x in child_dicts)
-        if not has_event_child:candidates.append(o)
+    if not isinstance(payload,(dict,list)):
+        raise UnsupportedAlertSchema("Valid JSON, but it does not contain objects that can be normalized.")
+
+    # Explicit event collections are authoritative. Each top-level list item is
+    # one event; nested actor/details/metadata dictionaries only enrich it.
+    if isinstance(payload,list):
+        roots=[x for x in payload if isinstance(x,dict)]
+    elif isinstance(payload.get("alerts"),list):
+        roots=[x for x in payload["alerts"] if isinstance(x,dict)]
+    elif isinstance(payload.get("events"),list):
+        roots=[x for x in payload["events"] if isinstance(x,dict)]
+    elif isinstance(payload.get("records"),list):
+        roots=[x for x in payload["records"] if isinstance(x,dict)]
+    elif isinstance(payload.get("results"),list):
+        roots=[x for x in payload["results"] if isinstance(x,dict)]
+    elif isinstance(payload.get("data"),list):
+        roots=[x for x in payload["data"] if isinstance(x,dict)]
+    else:
+        roots=[payload]
+
+    if not roots:
+        raise UnsupportedAlertSchema("Security alert upload must contain between 1 and 500 alerts.")
+    if len(roots)>500:
+        raise UnsupportedAlertSchema("Security alert upload must contain between 1 and 500 alerts.")
+
     normalized=[];feedback={};seen=set()
-    # Always try the upload/root object first. A real alert can contain nested
-    # security metadata; those children must enrich the parent, not replace it.
-    roots = payload if isinstance(payload,list) else [payload]
-    ordered=[]
-    root_ids={id(o) for o in roots if isinstance(o,dict)}
-    # If a root object is itself a valid security event, its nested dictionaries
-    # are metadata/evidence and must not become duplicate alerts.
-    valid_root_ids=set()
-    for root in roots:
-        if not isinstance(root,dict):continue
+    for o in roots:
         try:
-            if _infer_type(root)[0]:valid_root_ids.add(id(root))
-        except Exception:pass
-    for o in list(roots)+candidates:
-        if not isinstance(o,dict):continue
-        if valid_root_ids and id(o) not in root_ids:
-            continue
-        if all(o is not existing for existing in ordered):
-            ordered.append(o)
-    for o in ordered:
-        try:
-            event,m=normalize_uploaded_alert(o,len(normalized),payload)
+            event,m=normalize_uploaded_alert(o,len(normalized),o)
             if event["id"] in seen:continue
             seen.add(event["id"]);normalized.append(event)
             for canonical,src in m.items():
                 if src:feedback[f"{src} → {canonical}"]=True
-        except UnsupportedAlertSchema:pass
-    if not normalized:
-        for raw in _ai_normalize(payload):
-            if not isinstance(raw,dict):continue
-            try:
-                event,m=normalize_uploaded_alert(raw,len(normalized),payload)
-                if event["id"] in seen:continue
-                seen.add(event["id"]);normalized.append(event)
-            except UnsupportedAlertSchema:pass
-        if normalized:feedback["unknown schema → Gemini structured normalization"]=True
+        except UnsupportedAlertSchema:
+            # AI fallback is per root so one unfamiliar vendor event cannot
+            # cause sibling events to be lost or merged.
+            for raw in _ai_normalize(o):
+                if not isinstance(raw,dict):continue
+                try:
+                    event,m=normalize_uploaded_alert(raw,len(normalized),o)
+                    if event["id"] in seen:continue
+                    seen.add(event["id"]);normalized.append(event)
+                    feedback["unknown schema → Gemini structured normalization"]=True
+                except UnsupportedAlertSchema:pass
+
     if not normalized:
         raise UnsupportedAlertSchema("Valid JSON, but no security-relevant alert/event objects could be identified deterministically or by the AI normalization fallback.")
-    if len(normalized)>500:raise UnsupportedAlertSchema("Security alert upload must contain between 1 and 500 alerts.")
     if any(x.get("timestamp_inferred") for x in normalized):feedback["missing timestamp → ingestion time/report timestamp"]=True
     if any(x.get("type_inferred") for x in normalized):feedback["unknown event names → preserved as unclassified security activity"]=True
     return normalized,list(feedback)
