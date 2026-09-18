@@ -30,7 +30,10 @@ app.add_middleware(
 
 class ReviewRequest(BaseModel):
     incident_id: str
-    decision: Literal["approved", "rejected"]
+    decision: Literal["approved", "rejected", "false_positive"]
+    action: Literal["monitor", "temporary_containment", "permanent_block", "restore_access"] = "monitor"
+    reason: str = Field(default="", max_length=500)
+    acknowledged: bool = False
 
 
 class RawAlert(BaseModel):
@@ -161,14 +164,33 @@ async def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
 
 @app.post("/api/review")
 def review(payload: ReviewRequest):
+    incident = get_incident(payload.incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    confidence = int(incident.get("confidence", 0))
+    if payload.action == "permanent_block":
+        raise HTTPException(status_code=409, detail="Permanent blocking requires separate second-party authorization and is never executed by SentraPixel")
+    if payload.decision == "approved" and payload.action == "temporary_containment":
+        if confidence < 60:
+            raise HTTPException(status_code=409, detail="Low-confidence incidents can only be monitored or marked for review")
+        if not payload.acknowledged:
+            raise HTTPException(status_code=400, detail="Containment impact must be acknowledged")
+    if payload.decision == "false_positive" and not payload.reason.strip():
+        raise HTTPException(status_code=400, detail="A false-positive reason is required")
     if not save_review(payload.incident_id, payload.decision):
         raise HTTPException(status_code=500, detail="Review could not be saved")
+    messages = {
+        "approved": "Monitoring saved" if payload.action == "monitor" else "Temporary containment approved with rollback available",
+        "rejected": "Response plan rejected; incident remains under analyst review",
+        "false_positive": "False positive recorded and access restoration requested",
+    }
     return {
         "incident_id": payload.incident_id,
         "decision": payload.decision,
-        "message": "Response plan approved for simulated execution"
-        if payload.decision == "approved"
-        else "Response plan rejected; incident remains under analyst review",
+        "action": payload.action,
+        "reason": payload.reason.strip(),
+        "rollback_available": payload.action == "temporary_containment",
+        "message": messages[payload.decision],
     }
 
 
