@@ -201,8 +201,20 @@ def normalize_upload(payload:Any):
     # security metadata; those children must enrich the parent, not replace it.
     roots = payload if isinstance(payload,list) else [payload]
     ordered=[]
+    root_ids={id(o) for o in roots if isinstance(o,dict)}
+    # If a root object is itself a valid security event, its nested dictionaries
+    # are metadata/evidence and must not become duplicate alerts.
+    valid_root_ids=set()
+    for root in roots:
+        if not isinstance(root,dict):continue
+        try:
+            if _infer_type(root)[0]:valid_root_ids.add(id(root))
+        except Exception:pass
     for o in list(roots)+candidates:
-        if isinstance(o,dict) and all(o is not existing for existing in ordered):
+        if not isinstance(o,dict):continue
+        if valid_root_ids and id(o) not in root_ids:
+            continue
+        if all(o is not existing for existing in ordered):
             ordered.append(o)
     for o in ordered:
         try:
