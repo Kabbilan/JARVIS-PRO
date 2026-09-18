@@ -64,8 +64,8 @@ def _sev(v):
 def _infer_type(a):
     v,k=_pick(a,"type")
     text=" ".join(str(x) for x in [v,a.get("title"),a.get("message"),a.get("description"),a.get("summary"),a.get("reason"),a.get("signature"),a.get("rule_name")] if x).lower()
-    semantic_text=re.sub(r"[_\\-./]+"," ",text)
-    semantic_text=re.sub(r"\\s+"," ",semantic_text).strip()
+    semantic_text=text.replace("_"," ").replace("-"," ").replace("."," ").replace("/"," ")
+    semantic_text=" ".join(semantic_text.split())
     direct=str(v).strip().lower().replace(" ","_").replace("-","_") if v is not None else ""
     # Vendor event names commonly add wrappers such as *_alert, *_event, *_detected.
     stripped=re.sub(r"_(alert|event|detected|detection|notification|warning)$","",direct)
