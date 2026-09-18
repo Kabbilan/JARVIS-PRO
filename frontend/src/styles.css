@@ -408,3 +408,14 @@ main:after{z-index:-1!important;opacity:.65}
  backdrop-filter:none!important;
  -webkit-backdrop-filter:none!important
 }
+
+
+/* Evidence-backed contribution graph */
+.risk-evidence-graph{margin-top:18px;padding-top:15px;border-top:1px solid #e4edf4;display:grid;gap:13px}
+.risk-graph-title{font:800 10px 'Space Mono';letter-spacing:.08em;text-transform:uppercase;color:#168dbd}
+.risk-graph-row{display:grid;gap:5px}.risk-graph-meta{display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#425d73}.risk-graph-meta span{font-weight:700}.risk-graph-meta b{font:700 10px 'Space Mono';color:#17304a}
+.risk-graph-track{height:9px;border-radius:99px;background:#eaf1f6;overflow:hidden}.risk-graph-fill{display:block;height:100%;border-radius:99px;transform-origin:left;animation:riskBarGrow .8s cubic-bezier(.2,.8,.2,1) both}
+.graph-fill-0{background:var(--risk-c0)}.graph-fill-1{background:var(--risk-c1)}.graph-fill-2{background:var(--risk-c2)}.graph-fill-3{background:var(--risk-c3)}.graph-fill-4{background:var(--risk-c4)}.graph-fill-5{background:var(--risk-c5)}
+.risk-graph-row>small{font-size:8.5px;line-height:1.4;color:#8195a6}
+@keyframes riskBarGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media(max-width:560px){.risk-graph-meta{font-size:9px}.risk-evidence-graph{gap:11px}}
