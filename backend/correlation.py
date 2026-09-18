@@ -85,7 +85,8 @@ def normalize_event(event, index):
     event_type = str(event.get("type", "normal_activity")).strip().lower().replace(" ", "_")
     return {
         "id": str(event.get("id") or f"RAW-{index + 1:03d}"),
-        "timestamp": event.get("timestamp"),\n        "time": str(event.get("time") or "00:00"),
+        "timestamp": event.get("timestamp"),
+        "time": str(event.get("time") or "00:00"),
         "source": str(event.get("source") or "Unknown"),
         "type": event_type,
         "label": str(event.get("label") or event_type.replace("_", " ").title()),
