@@ -23,7 +23,8 @@ function App() {
   const [scenarios, setScenarios] = useState(fallbackScenarios);
   const [selected, setSelected] = useState("account-takeover");
   const [incident, setIncident] = useState(null);
-  const [batch, setBatch] = useState(null);\n  const [analysisReturnView, setAnalysisReturnView] = useState("command");
+  const [batch, setBatch] = useState(null);
+  const [analysisReturnView, setAnalysisReturnView] = useState("command");
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState(0);
   const [review, setReview] = useState(null);
@@ -199,7 +200,7 @@ function App() {
     } finally { setHistoryLoading(false); }
   }
 
-  async function openIncident(incidentId) {
+  async function openIncident(incidentId, returnView = null) {\n    setAnalysisReturnView(returnView || (batch ? "batch" : "incidents"));
     setLoading(true); setIncident(null); setInvestigation(null); setResponsePlan(null); setVerification(null); setError(""); setView("analysis");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
@@ -250,7 +251,8 @@ function App() {
     } finally { setReporting(false); }
   }
 
-  return <div className="app-shell">\n
+  return <div className="app-shell">
+
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
       <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={openCommandCenter}><Radar /> Command Center</button><button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button className={view === "analysis" ? "active" : ""} onClick={openAnalysis}><BrainCircuit /> Analysis</button></nav>
