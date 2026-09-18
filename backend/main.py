@@ -4,8 +4,9 @@ from pydantic import BaseModel, Field
 from typing import Any, Literal
 from ai_agent import generate_investigation
 from correlation import analyze_events, analyze_scenario, get_scenarios
+from database import save_incident, save_investigation, save_review
 
-app = FastAPI(title="AEGIS SOC API", version="0.3.0")
+app = FastAPI(title="AEGIS SOC API", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,7 +44,7 @@ class AnalyzeAlertsRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"status": "online", "service": "AEGIS correlation engine", "version": "0.3.0"}
+    return {"status": "online", "service": "AEGIS correlation engine", "version": "0.4.0"}
 
 
 @app.get("/api/scenarios")
@@ -56,6 +57,7 @@ def analyze(scenario_id: str):
     result = analyze_scenario(scenario_id)
     if not result:
         raise HTTPException(status_code=404, detail="Scenario not found")
+    save_incident(result)
     return result
 
 
@@ -64,6 +66,7 @@ def analyze_raw_alerts(payload: AnalyzeAlertsRequest):
     result = analyze_events([alert.as_event() for alert in payload.alerts])
     if not result:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
+    save_incident(result)
     return result
 
 
@@ -72,7 +75,10 @@ def investigate(scenario_id: str):
     incident = analyze_scenario(scenario_id)
     if not incident:
         raise HTTPException(status_code=404, detail="Scenario not found")
-    return {"incident_id": incident["incident_id"], "investigation": generate_investigation(incident)}
+    save_incident(incident)
+    investigation = generate_investigation(incident)
+    save_investigation(incident["incident_id"], investigation)
+    return {"incident_id": incident["incident_id"], "investigation": investigation}
 
 
 @app.post("/api/investigate-alerts")
@@ -80,11 +86,15 @@ def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
     incident = analyze_events([alert.as_event() for alert in payload.alerts])
     if not incident:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
-    return {"incident_id": incident["incident_id"], "investigation": generate_investigation(incident)}
+    save_incident(incident)
+    investigation = generate_investigation(incident)
+    save_investigation(incident["incident_id"], investigation)
+    return {"incident_id": incident["incident_id"], "investigation": investigation}
 
 
 @app.post("/api/review")
 def review(payload: ReviewRequest):
+    save_review(payload.incident_id, payload.decision)
     return {
         "incident_id": payload.incident_id,
         "decision": payload.decision,
