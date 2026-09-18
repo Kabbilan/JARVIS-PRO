@@ -142,8 +142,12 @@ def build_result(events, incident_id=None):
     score, level, factors = severity(events)
     event_types = {event["type"] for event in events}
     malicious = level in {"high", "critical"} and len(links) > 0
+    high_risk_signal = level in {"high", "critical"}
 
-    if "data_exfiltration" in event_types and "privilege_escalation" in event_types:
+    if high_risk_signal and not malicious:
+        signal = "Data Exfiltration" if "data_exfiltration" in event_types else "Security"
+        title = f"Uncorrelated High-Risk Alert — {signal} Signal"
+    elif "data_exfiltration" in event_types and "privilege_escalation" in event_types:
         title = "Account Compromise with Data Exfiltration"
     elif "data_exfiltration" in event_types:
         title = "Possible Data Exfiltration"
@@ -159,21 +163,27 @@ def build_result(events, incident_id=None):
     correlated_events = [event for event in events if event["id"] in correlated_ids]
     story_events = correlated_events if malicious else events
     stages = [STAGES.get(event["type"], event["type"].replace("_", " ").title()) for event in story_events]
-    summary = (
-        f"SentraPixel correlated {correlated_count} of {len(events)} alerts using identity, device, IP and time evidence. "
-        f"Observed attack progression: {' -> '.join(stages)}."
-        if malicious else
-        f"SentraPixel analyzed {len(events)} alerts but did not find a high-confidence malicious attack chain."
-    )
-    actions = (
-        ["Disable the affected identity", "Revoke active sessions", "Block the suspicious source IP",
-         "Isolate the endpoint", "Preserve logs and begin forensic review"]
-        if malicious else
-        ["Keep the identity under routine monitoring", "Close as benign after analyst verification"]
-    )
     anchor = max(correlated_events or events, key=lambda event: event["base_severity"])
     shared_evidence = sum(reason.count("same ") for reason in (link["reason"] for link in links))
     confidence = min(99, 35 + len(links) * 12 + shared_evidence * 4) if malicious else max(15, 55 - len(events) * 5)
+    if malicious:
+        classification = "confirmed_correlated_incident"
+        reason = f"{correlated_count} alerts share identity, device or IP evidence within the 15-minute correlation window."
+        summary = f"SentraPixel correlated {correlated_count} of {len(events)} alerts using identity, device, IP and time evidence. Observed attack progression: {' -> '.join(stages)}."
+        actions = ["Disable the affected identity", "Revoke active sessions", "Block the suspicious source IP", "Isolate the endpoint", "Preserve logs and begin forensic review"]
+        missing_evidence = []
+    elif high_risk_signal:
+        classification = "uncorrelated_high_risk_signal"
+        reason = f"{anchor['id']} has alert severity {anchor['base_severity']}, but no other alert shares its user, device or IP within 15 minutes. The score reflects the source alert severity, not a confirmed attack chain."
+        summary = f"SentraPixel detected a high-risk {anchor['type'].replace('_', ' ')} signal but correlated 0 of {len(events)} alerts. This is an unverified security signal, not a confirmed data-exfiltration incident. Validate the source alert and collect supporting telemetry before containment."
+        actions = ["Validate the source alert with the originating security tool", "Search for matching identity, device, IP and destination evidence", "Preserve the raw alert and monitor the affected entity", "Do not block automatically without supporting evidence"]
+        missing_evidence = ["No shared user, device or IP across alerts", "No linked event inside the 15-minute window", "No evidence-backed attack progression"]
+    else:
+        classification = "benign_or_low_risk_activity"
+        reason = "The alerts do not form a high-severity evidence-linked attack chain."
+        summary = f"SentraPixel analyzed {len(events)} alerts but did not find a high-confidence malicious attack chain."
+        actions = ["Keep the identity under routine monitoring", "Close as benign after analyst verification"]
+        missing_evidence = []
     techniques = []
     for event in events:
         technique = MITRE_TECHNIQUES.get(event["type"])
@@ -183,6 +193,9 @@ def build_result(events, incident_id=None):
         "incident_id": incident_id or f"INC-{uuid4().hex[:10].upper()}",
         "title": title, "severity": level, "score": score, "status": "awaiting_review",
         "summary": summary,
+        "classification": classification,
+        "classification_reason": reason,
+        "missing_evidence": missing_evidence,
         "confidence": confidence,
         "confidence_basis": f"{len(links)} evidence links across {shared_evidence} shared entity matches",
         "events": [{**event, "stage": STAGES.get(event["type"], event["type"].replace("_", " ").title())} for event in events],
