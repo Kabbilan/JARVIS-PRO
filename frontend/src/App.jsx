@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import socBackgroundVideo from "../119005-716626027_medium.mp4";
 import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileJson, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, SearchCheck, ShieldCheck, Upload, XCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -174,7 +175,7 @@ function App() {
     } finally { setReporting(false); }
   }
 
-  return <div className="app-shell">\n    <div className="soc-video-bg" aria-hidden="true"><video autoPlay muted loop playsInline preload="metadata"><source src="/119005-716626027_medium.mp4" type="video/mp4" /></video><div className="soc-video-overlay" /></div>
+  return <div className="app-shell">\n    <div className="soc-video-bg" aria-hidden="true"><video autoPlay muted loop playsInline preload="metadata"><source src={socBackgroundVideo} type="video/mp4" /></video><div className="soc-video-overlay" /></div>
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
       <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button className={view === "live" ? "active" : ""} onClick={() => setView("live")}><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button onClick={() => { setView("command"); window.setTimeout(() => document.querySelector(".agent-card")?.scrollIntoView({ behavior: "smooth" }), 0); }}><BrainCircuit /> AI Investigation</button></nav>
