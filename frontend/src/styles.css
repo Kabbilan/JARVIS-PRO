@@ -25,3 +25,42 @@
   .history-toolbar .api-label{display:flex}
   .incident-table{min-width:680px}
 }
+
+
+/* Premium cursor + 3D interaction layer */
+:root{--glow:#39c9f3;--glow2:#8b7cff}
+html{scroll-behavior:smooth}
+body{cursor:crosshair;perspective:1400px}
+button,a,label,.scenario-option,.metric,.card,.incident-hero,.history-panel{cursor:pointer}
+main{transform-style:preserve-3d}
+.scenario-panel,.card,.metric,.incident-hero,.history-panel,.empty-state,.analysis-loader{
+  transform-style:preserve-3d;
+  transition:transform .28s cubic-bezier(.2,.8,.2,1),box-shadow .28s ease,border-color .28s ease,filter .28s ease;
+  will-change:transform
+}
+.scenario-panel:hover,.history-panel:hover{box-shadow:0 24px 70px rgba(20,157,230,.14);border-color:#2c6e91}
+.card:hover,.metric:hover{
+  transform:translateY(-5px) rotateX(1.2deg) rotateY(-1.2deg);
+  border-color:#2f7598;
+  box-shadow:0 18px 46px rgba(0,145,220,.16),0 0 0 1px rgba(75,216,255,.05)
+}
+.incident-hero:hover{transform:translateY(-4px) scale(1.005);box-shadow:0 24px 65px rgba(255,68,102,.12)}
+.scenario-option:hover{transform:translateY(-5px) scale(1.012);box-shadow:0 16px 38px rgba(22,184,230,.18)}
+.primary,.report-button,.approve,.reject,nav button,.input-tabs button{
+  position:relative;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease,filter .2s ease
+}
+.primary:hover,.approve:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(57,201,243,.3);filter:brightness(1.08)}
+.report-button:hover,.reject:hover,nav button:hover,.input-tabs button:hover{transform:translateY(-2px)}
+.brand-mark,.scanner,.risk-orb{transition:transform .35s ease,filter .35s ease}
+.brand-mark:hover,.scanner:hover{transform:rotateY(16deg) rotateX(8deg) scale(1.08);filter:drop-shadow(0 0 16px rgba(69,220,255,.55))}
+.risk-orb:hover{transform:rotateY(-10deg) rotateX(5deg) scale(1.05)}
+.card-title>span{transition:transform .3s ease,box-shadow .3s ease}
+.card:hover .card-title>span{transform:translateZ(18px) rotate(-4deg);box-shadow:0 8px 24px rgba(66,217,255,.18)}
+@media (prefers-reduced-motion:reduce){
+  *{scroll-behavior:auto!important;transition:none!important;animation-duration:.001ms!important}
+  .card:hover,.metric:hover,.incident-hero:hover,.scenario-option:hover,.primary:hover,.approve:hover,.report-button:hover,.reject:hover,nav button:hover,.input-tabs button:hover{transform:none}
+}
+@media(max-width:760px){
+  body{cursor:auto}
+  .card:hover,.metric:hover,.incident-hero:hover,.scenario-option:hover{transform:none}
+}
