@@ -48,6 +48,15 @@ DEFAULT_SEVERITY = {
     "normal_login": 5, "normal_activity": 3, "malware": 75, "c2_connection": 80,
 }
 
+ATTACK_RELATIONSHIPS = {
+    ("failed_login", "suspicious_login"),
+    ("suspicious_login", "privilege_escalation"),
+    ("privilege_escalation", "defense_evasion"),
+    ("sensitive_access", "data_exfiltration"),
+    ("data_exfiltration", "defense_evasion"),
+    ("malware", "c2_connection"),
+}
+
 MITRE_TECHNIQUES = {
     "failed_login": {"id": "T1110", "name": "Brute Force", "tactic": "Credential Access"},
     "suspicious_login": {"id": "T1078", "name": "Valid Accounts", "tactic": "Defense Evasion"},
@@ -93,6 +102,8 @@ def correlation_reason(left, right):
     gap = minutes(right["time"]) - minutes(left["time"])
     if shared_entity_count == 0 or not 0 <= gap <= 15:
         return ""
+    if (left["type"], right["type"]) in ATTACK_RELATIONSHIPS:
+        reasons.append("attack-sequence relationship")
     reasons.append(f"{gap}-minute gap")
     return ", ".join(reasons)
 
@@ -146,7 +157,12 @@ def build_result(events, incident_id=None):
     links = build_links(events)
     score, level, factors = severity(events)
     event_types = {event["type"] for event in events}
-    malicious = level in {"high", "critical"} and len(links) > 0
+    event_by_id = {event["id"]: event for event in events}
+    sequence_evidence = any(
+        (event_by_id[link["from"]]["type"], event_by_id[link["to"]]["type"]) in ATTACK_RELATIONSHIPS
+        for link in links
+    )
+    malicious = level in {"high", "critical"} and len(links) > 0 and sequence_evidence
     high_risk_signal = level in {"high", "critical"}
 
     if high_risk_signal and not malicious:
