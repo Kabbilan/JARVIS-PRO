@@ -171,3 +171,49 @@ nav button:hover svg{transform:translateX(3px) scale(1.1);filter:drop-shadow(0 0
  aside:before{display:none}
 }
 @media(prefers-reduced-motion:reduce){aside:before,.pulse{animation:none!important}}
+
+
+/* Whole-page motion system */
+main{animation:pageReveal .7s cubic-bezier(.2,.8,.2,1) both}
+header{animation:fadeDrop .65s .05s both}
+.scenario-panel{animation:fadeLift .7s .12s both}
+.metrics .metric:nth-child(1){animation:fadeLift .55s .16s both}
+.metrics .metric:nth-child(2){animation:fadeLift .55s .22s both}
+.metrics .metric:nth-child(3){animation:fadeLift .55s .28s both}
+.metrics .metric:nth-child(4){animation:fadeLift .55s .34s both}
+.incident-hero{animation:fadeLift .7s .24s both}
+.grid .card:nth-child(1){animation:fadeLift .65s .30s both}
+.grid .card:nth-child(2){animation:fadeLift .65s .38s both}
+.grid .card:nth-child(3){animation:fadeLift .65s .46s both}
+.agent-card,.history-panel,.empty-state,.analysis-loader{animation:fadeLift .65s .2s both}
+main:before{
+ content:"";position:fixed;width:420px;height:420px;right:-130px;top:90px;border-radius:50%;
+ background:radial-gradient(circle,rgba(57,201,243,.11),rgba(123,101,238,.04) 48%,transparent 70%);
+ pointer-events:none;z-index:-1;animation:ambientFloat 8s ease-in-out infinite alternate
+}
+main:after{
+ content:"";position:fixed;width:330px;height:330px;left:28%;bottom:-160px;border-radius:50%;
+ background:radial-gradient(circle,rgba(76,220,174,.08),transparent 68%);
+ pointer-events:none;z-index:-1;animation:ambientFloat2 10s ease-in-out infinite alternate
+}
+.scenario-panel,.metric,.card,.incident-hero,.agent-card,.history-panel{backface-visibility:hidden}
+.scenario-panel:hover,.agent-card:hover,.history-panel:hover{transform:translateY(-4px) translateZ(8px)}
+.metric:hover,.card:hover{transform:translateY(-7px) rotateX(1.5deg) rotateY(-1.5deg) scale(1.008)}
+.incident-hero:hover{transform:translateY(-5px) scale(1.006)}
+.scenario-option,.incident-table tbody tr,.actions div,.factor-list div,.indicators div{transition:transform .24s ease,background .24s ease,box-shadow .24s ease}
+.incident-table tbody tr:hover{transform:translateX(4px);background:#f2faff}
+.actions div:hover,.factor-list div:hover,.indicators div:hover{transform:translateX(4px)}
+.risk-orb{animation:riskFloat 4s ease-in-out infinite}
+.scanner{animation:scannerFloat 3.8s ease-in-out infinite}
+.loader-visual{animation:softSpin 5s linear infinite}
+@keyframes pageReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fadeDrop{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+@keyframes fadeLift{from{opacity:0;transform:translateY(22px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes ambientFloat{from{transform:translate3d(0,-20px,0) scale(.95)}to{transform:translate3d(-55px,55px,0) scale(1.12)}}
+@keyframes ambientFloat2{from{transform:translate3d(-25px,0,0)}to{transform:translate3d(60px,-45px,0)}}
+@keyframes riskFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes scannerFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-6px) rotate(2deg)}}
+@keyframes softSpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+ main,header,.scenario-panel,.metric,.incident-hero,.grid .card,.agent-card,.history-panel,.empty-state,.analysis-loader,.risk-orb,.scanner,.loader-visual,main:before,main:after{animation:none!important}
+}
