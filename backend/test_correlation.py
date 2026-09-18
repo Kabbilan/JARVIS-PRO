@@ -131,3 +131,17 @@ def test_batch_does_not_merge_disconnected_users_devices_or_ips():
     assert result["incident_count"] == 0
     assert result["correlated_alerts"] == 0
     assert result["uncorrelated_alerts"] == 2
+
+
+def test_vendor_attack_chain_correlates_by_case_and_semantics():
+    alerts = [
+        {"id":"E1","timestamp":"2026-09-19T03:10:05+00:00","time":"08:40","type":"phishing","incident_key":"INC-2026-8891","user":"jdoe@company.com","ip":"192.168.1.50","device":"unknown","base_severity":60},
+        {"id":"E2","timestamp":"2026-09-19T03:12:44+00:00","time":"08:42","type":"execution","incident_key":"INC-2026-8891","user":"jdoe@company.com","ip":"192.168.1.50","device":"WS-JDOE-01","base_severity":75},
+        {"id":"E3","timestamp":"2026-09-19T03:13:02+00:00","time":"08:43","type":"c2_connection","incident_key":"INC-2026-8891","user":"unknown","ip":"192.168.1.50","device":"WS-JDOE-01","base_severity":80},
+        {"id":"E4","timestamp":"2026-09-19T03:16:19+00:00","time":"08:46","type":"privilege_escalation","incident_key":"INC-2026-8891","user":"jdoe@company.com","ip":"unknown","device":"WS-JDOE-01","base_severity":85},
+    ]
+    result=analyze_event_batch(alerts)
+    assert result["raw_alerts"]==4
+    assert result["incident_count"]==1
+    assert result["correlated_alerts"]==4
+    assert result["uncorrelated_alerts"]==0
