@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any, Literal
+from ai_agent import generate_investigation
 from correlation import analyze_events, analyze_scenario, get_scenarios
 
-app = FastAPI(title="AEGIS SOC API", version="0.2.0")
+app = FastAPI(title="AEGIS SOC API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,7 +43,7 @@ class AnalyzeAlertsRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"status": "online", "service": "AEGIS correlation engine", "version": "0.2.0"}
+    return {"status": "online", "service": "AEGIS correlation engine", "version": "0.3.0"}
 
 
 @app.get("/api/scenarios")
@@ -64,6 +65,22 @@ def analyze_raw_alerts(payload: AnalyzeAlertsRequest):
     if not result:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
     return result
+
+
+@app.post("/api/investigate/{scenario_id}")
+def investigate(scenario_id: str):
+    incident = analyze_scenario(scenario_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return {"incident_id": incident["incident_id"], "investigation": generate_investigation(incident)}
+
+
+@app.post("/api/investigate-alerts")
+def investigate_raw_alerts(payload: AnalyzeAlertsRequest):
+    incident = analyze_events([alert.as_event() for alert in payload.alerts])
+    if not incident:
+        raise HTTPException(status_code=400, detail="No valid alerts supplied")
+    return {"incident_id": incident["incident_id"], "investigation": generate_investigation(incident)}
 
 
 @app.post("/api/review")
