@@ -1,0 +1,33 @@
+# AEGIS SOC
+
+Explainable autonomous SOC assistant for FC-04. It correlates fragmented security alerts, reconstructs attack chains, scores incident severity, and recommends human-approved response actions.
+
+## Run locally
+
+Backend:
+
+```bash
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://localhost:5173`.
+
+## Demo flow
+
+1. Select a prepared scenario.
+2. Run correlation.
+3. Inspect alert links, attack chain, severity factors, and timeline.
+4. Review recommended actions and approve or reject them.
+
