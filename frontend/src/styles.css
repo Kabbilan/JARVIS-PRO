@@ -340,3 +340,18 @@ body{
 }
 main:before{z-index:-1!important;opacity:.8}
 main:after{z-index:-1!important;opacity:.65}
+
+
+/* Safe sidebar continuity: paint the left grid column for the full document height */
+@media(min-width:1051px){
+ .app-shell{
+   background:linear-gradient(90deg,#061426 0,#061426 250px,transparent 250px)!important;
+   min-height:100vh
+ }
+}
+@media(min-width:821px) and (max-width:1050px){
+ .app-shell{
+   background:linear-gradient(90deg,#061426 0,#061426 210px,transparent 210px)!important;
+   min-height:100vh
+ }
+}
