@@ -4,19 +4,27 @@ from uuid import uuid4
 
 SCENARIOS = {
     "account-takeover": {
-        "name": "Account Takeover + Data Exfiltration",
-        "description": "A compromised employee identity escalates privileges and exports confidential data.",
+        "name": "Account Takeover",
+        "description": "Repeated login failures are followed by a suspicious successful login and privilege escalation.",
         "events": [
             {"id": "EVT-101", "time": "10:00", "source": "Identity", "type": "failed_login", "label": "8 failed login attempts", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "VPN", "base_severity": 18},
             {"id": "EVT-102", "time": "10:04", "source": "Identity", "type": "suspicious_login", "label": "Successful login from unfamiliar location", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "VPN", "base_severity": 42},
-            {"id": "EVT-103", "time": "10:07", "source": "IAM", "type": "privilege_escalation", "label": "Administrator privilege granted", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "Admin Console", "base_severity": 63},
-            {"id": "EVT-104", "time": "10:12", "source": "File Server", "type": "sensitive_access", "label": "Confidential finance folder accessed", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "Finance Vault", "base_severity": 68},
-            {"id": "EVT-105", "time": "10:18", "source": "Firewall", "type": "data_exfiltration", "label": "2 GB outbound transfer to unknown host", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "External Host", "base_severity": 90},
-            {"id": "EVT-106", "time": "10:20", "source": "Endpoint", "type": "defense_evasion", "label": "Endpoint protection disabled", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "EDR Agent", "base_severity": 76},
+            {"id": "EVT-103", "time": "10:07", "source": "IAM", "type": "privilege_escalation", "label": "Administrator privilege granted", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "Admin Console", "base_severity": 72},
+            {"id": "EVT-104", "time": "10:11", "source": "Endpoint", "type": "defense_evasion", "label": "Endpoint protection tampering detected", "user": "arun@acme.io", "ip": "185.20.10.8", "device": "DEV-17", "resource": "EDR Agent", "base_severity": 76},
+        ],
+    },
+    "data-exfiltration": {
+        "name": "Data Exfiltration",
+        "description": "Sensitive data is collected and transferred to an unusual external destination.",
+        "events": [
+            {"id": "EVT-301", "time": "14:00", "source": "File Server", "type": "sensitive_access", "label": "Confidential customer records accessed", "user": "dev@acme.io", "ip": "10.0.4.22", "device": "DEV-31", "resource": "Customer Records", "base_severity": 68},
+            {"id": "EVT-302", "time": "14:05", "source": "File Server", "type": "sensitive_access", "label": "Large batch of confidential files collected", "user": "dev@acme.io", "ip": "10.0.4.22", "device": "DEV-31", "resource": "Customer Records", "base_severity": 72},
+            {"id": "EVT-303", "time": "14:10", "source": "Firewall", "type": "data_exfiltration", "label": "2.4 GB outbound transfer to unknown host", "user": "dev@acme.io", "ip": "10.0.4.22", "device": "DEV-31", "resource": "External Host", "base_severity": 90},
+            {"id": "EVT-304", "time": "14:13", "source": "Endpoint", "type": "defense_evasion", "label": "Security telemetry interrupted after transfer", "user": "dev@acme.io", "ip": "10.0.4.22", "device": "DEV-31", "resource": "EDR Agent", "base_severity": 76},
         ],
     },
     "benign-login": {
-        "name": "Benign Authentication Noise",
+        "name": "Benign Activity",
         "description": "A legitimate employee mistypes a password before a normal login.",
         "events": [
             {"id": "EVT-201", "time": "11:02", "source": "Identity", "type": "failed_login", "label": "2 failed login attempts", "user": "maya@acme.io", "ip": "10.0.2.15", "device": "DEV-08", "resource": "Email", "base_severity": 12},
@@ -117,6 +125,8 @@ def build_result(events, incident_id=None):
         title = "Account Compromise with Data Exfiltration"
     elif "data_exfiltration" in event_types:
         title = "Possible Data Exfiltration"
+    elif "suspicious_login" in event_types and "privilege_escalation" in event_types:
+        title = "Account Takeover"
     elif malicious:
         title = "Correlated Security Incident"
     else:
@@ -168,5 +178,9 @@ def analyze_scenario(scenario_id):
     scenario = SCENARIOS.get(scenario_id)
     if not scenario:
         return None
-    incident_id = "INC-2026-0918-001" if scenario_id == "account-takeover" else "INC-2026-0918-002"
-    return build_result(scenario["events"], incident_id)
+    incident_ids = {
+        "account-takeover": "INC-2026-0918-001",
+        "data-exfiltration": "INC-2026-0918-002",
+        "benign-login": "INC-2026-0918-003",
+    }
+    return build_result(scenario["events"], incident_ids.get(scenario_id))
