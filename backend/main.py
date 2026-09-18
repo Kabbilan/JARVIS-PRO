@@ -127,3 +127,18 @@ def report(scenario_id: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.post("/api/report-alerts")
+def report_raw_alerts(payload: AnalyzeAlertsRequest):
+    incident = analyze_events([alert.as_event() for alert in payload.alerts])
+    if not incident:
+        raise HTTPException(status_code=400, detail="No valid alerts supplied")
+    investigation = generate_investigation(incident)
+    pdf = generate_incident_report(incident, investigation)
+    filename = f"SentraPixel-{incident['incident_id']}.pdf"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

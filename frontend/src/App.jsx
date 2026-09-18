@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, SearchCheck, ShieldCheck, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, BrainCircuit, CheckCircle2, ChevronRight, CircleDot, Clock3, Database, Download, FileJson, FileSearch, Fingerprint, Link2, ListChecks, LoaderCircle, LockKeyhole, Network, Radar, SearchCheck, ShieldCheck, Upload, XCircle } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const scenarioCatalog = [
@@ -12,6 +12,11 @@ const fallbackScenarios = [
   { id: "benign-login", name: "Benign Authentication Noise", description: "Legitimate password mistakes followed by normal activity.", event_count: 3 },
 ];
 const loadingStages = ["Normalizing telemetry", "Linking shared entities", "Calculating severity", "Building incident story"];
+const sampleAlerts = JSON.stringify([
+  { id: "SIEM-001", time: "09:00", source: "Identity", type: "failed_login", label: "12 failed login attempts", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042", base_severity: 20 },
+  { id: "SIEM-002", time: "09:04", source: "Identity", type: "suspicious_login", label: "Successful login from unusual location", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042", base_severity: 45 },
+  { id: "SIEM-003", time: "09:09", source: "Firewall", type: "data_exfiltration", label: "Large outbound transfer detected", user: "analyst@company.com", ip: "198.51.100.24", device: "LAP-042", base_severity: 88 }
+], null, 2);
 
 function App() {
   const [scenarios, setScenarios] = useState(fallbackScenarios);
@@ -28,6 +33,9 @@ function App() {
   const [reportError, setReportError] = useState("");
   const [error, setError] = useState("");
   const [apiOnline, setApiOnline] = useState(null);
+  const [inputMode, setInputMode] = useState("scenario");
+  const [alertText, setAlertText] = useState(sampleAlerts);
+  const [currentAlerts, setCurrentAlerts] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/api/scenarios`).then((response) => {
@@ -48,8 +56,21 @@ function App() {
   const availableScenarioIds = new Set(scenarios.map((scenario) => scenario.id));
 
   function chooseScenario(id) {
+    setInputMode("scenario");
     setSelected(id);
     setIncident(null);
+    setCurrentAlerts(null);
+    setInvestigation(null);
+    setInvestigationError("");
+    setReview(null);
+    setReportError("");
+    setError("");
+  }
+
+  function switchInputMode(mode) {
+    setInputMode(mode);
+    setIncident(null);
+    setCurrentAlerts(null);
     setInvestigation(null);
     setInvestigationError("");
     setReview(null);
@@ -58,25 +79,42 @@ function App() {
   }
 
   async function runAnalysis() {
-    if (!availableScenarioIds.has(selected)) {
+    if (inputMode === "scenario" && !availableScenarioIds.has(selected)) {
       setError("Data Exfiltration scenario is waiting for the backend API. Add scenario ID: data-exfiltration.");
       return;
     }
     setLoading(true); setReview(null); setError("");
     try {
-      const response = await fetch(`${API}/api/analyze/${selected}`, { method: "POST" });
+      let alerts = null;
+      if (inputMode === "custom") {
+        const parsed = JSON.parse(alertText);
+        alerts = Array.isArray(parsed) ? parsed : parsed.alerts;
+        if (!Array.isArray(alerts) || !alerts.length) throw new Error("invalid-alerts");
+      }
+      const response = await fetch(inputMode === "custom" ? `${API}/api/analyze-alerts` : `${API}/api/analyze/${selected}`, {
+        method: "POST",
+        headers: inputMode === "custom" ? { "Content-Type": "application/json" } : undefined,
+        body: inputMode === "custom" ? JSON.stringify({ alerts }) : undefined,
+      });
       if (!response.ok) throw new Error();
       setIncident(await response.json()); setApiOnline(true);
-      runInvestigation(selected);
-    } catch {
-      setError("Correlation engine unavailable. Confirm the FastAPI service is running on port 8000."); setApiOnline(false);
+      setCurrentAlerts(alerts);
+      runInvestigation(alerts);
+    } catch (analysisError) {
+      if (analysisError.message === "invalid-alerts" || analysisError instanceof SyntaxError) setError("Invalid JSON. Provide a non-empty alert array or an object with an alerts array.");
+      else { setError("Correlation engine unavailable. Confirm the FastAPI service is running on port 8000."); setApiOnline(false); }
     } finally { setLoading(false); }
   }
 
-  async function runInvestigation(scenarioId) {
+  async function runInvestigation(alerts = currentAlerts) {
     setInvestigating(true); setInvestigation(null); setInvestigationError("");
     try {
-      const response = await fetch(`${API}/api/investigate/${scenarioId}`, { method: "POST" });
+      const custom = Array.isArray(alerts);
+      const response = await fetch(custom ? `${API}/api/investigate-alerts` : `${API}/api/investigate/${selected}`, {
+        method: "POST",
+        headers: custom ? { "Content-Type": "application/json" } : undefined,
+        body: custom ? JSON.stringify({ alerts }) : undefined,
+      });
       if (!response.ok) throw new Error();
       const result = await response.json();
       setInvestigation(result.investigation);
@@ -98,7 +136,12 @@ function App() {
   async function downloadReport() {
     setReporting(true); setReportError("");
     try {
-      const response = await fetch(`${API}/api/report/${selected}`);
+      const custom = Array.isArray(currentAlerts);
+      const response = await fetch(custom ? `${API}/api/report-alerts` : `${API}/api/report/${selected}`, {
+        method: custom ? "POST" : "GET",
+        headers: custom ? { "Content-Type": "application/json" } : undefined,
+        body: custom ? JSON.stringify({ alerts: currentAlerts }) : undefined,
+      });
       if (!response.ok) throw new Error();
       const url = window.URL.createObjectURL(await response.blob());
       const anchor = document.createElement("a");
@@ -123,12 +166,13 @@ function App() {
       <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>Incident Correlation Command Center</h1><p>Correlate fragmented alerts into an evidence-backed incident.</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
       <section className="scenario-panel">
-        <div className="panel-heading"><div><p className="section-label">DEMO CONTROL</p><h2>Choose an investigation scenario</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
-        <div className="scenario-grid">{scenarioCatalog.map(({ id, label, description, icon: Icon }) => {
+        <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
+        <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
+        {inputMode === "scenario" ? <div className="scenario-grid">{scenarioCatalog.map(({ id, label, description, icon: Icon }) => {
           const ready = availableScenarioIds.has(id);
           return <button key={id} className={`scenario-option ${selected === id ? "selected" : ""}`} onClick={() => chooseScenario(id)}><span className="scenario-icon"><Icon /></span><span className="scenario-copy"><strong>{label}</strong><small>{description}</small></span><span className={`availability ${ready ? "ready" : "pending"}`}>{ready ? "READY" : "API PENDING"}</span></button>;
-        })}</div>
-        <div className="scenario-footer"><p>{selectedMeta?.description || scenarioCatalog.find((item) => item.id === selected)?.description}</p><button className="primary" onClick={runAnalysis} disabled={loading}>{loading ? <><LoaderCircle className="button-spinner" /> ANALYZING</> : <>ANALYZE SCENARIO <ChevronRight /></>}</button></div>
+        })}</div> : <div className="custom-alerts"><div className="upload-row"><label className="file-button"><Upload /> Upload JSON<input type="file" accept=".json,application/json" onChange={(event) => { const file = event.target.files?.[0]; if (file) file.text().then(setAlertText).catch(() => setError("The selected file could not be read.")); event.target.value = ""; }} /></label><button onClick={() => setAlertText(sampleAlerts)}>Load sample</button><span>1–500 alerts · HH:MM time required</span></div><textarea value={alertText} onChange={(event) => setAlertText(event.target.value)} spellCheck="false" aria-label="Security alerts JSON" /></div>}
+        <div className="scenario-footer"><p>{inputMode === "scenario" ? selectedMeta?.description || scenarioCatalog.find((item) => item.id === selected)?.description : "Paste or upload normalized SIEM alerts. SentraPixel will correlate shared identity, device, IP, and time evidence."}</p><button className="primary" onClick={runAnalysis} disabled={loading}>{loading ? <><LoaderCircle className="button-spinner" /> ANALYZING</> : <>{inputMode === "custom" ? "ANALYZE ALERTS" : "ANALYZE SCENARIO"} <ChevronRight /></>}</button></div>
         {error && <div className="error" role="alert"><XCircle />{error}</div>}
       </section>
 
@@ -149,7 +193,7 @@ function App() {
         <section className="card agent-card">
           <CardTitle icon={<BrainCircuit />} label="GEMINI INVESTIGATION AGENT" title="AI-assisted incident investigation" />
           {investigating && <div className="agent-loading"><LoaderCircle className="button-spinner" /><div><strong>Investigating correlated evidence</strong><span>Building a grounded narrative and analyst next steps.</span></div></div>}
-          {investigationError && <div className="agent-error"><AlertTriangle />{investigationError}<button onClick={() => runInvestigation(selected)}>Retry</button></div>}
+          {investigationError && <div className="agent-error"><AlertTriangle />{investigationError}<button onClick={() => runInvestigation()}>Retry</button></div>}
           {investigation && <div className="agent-grid">
             <div className="agent-narrative"><p className="agent-label"><BrainCircuit /> NARRATIVE</p><p>{investigation.narrative}</p><span className="provider-badge">{investigation.provider === "gemini" ? "GEMINI GENERATED" : "DETERMINISTIC FALLBACK"}</span></div>
             <div className="agent-list"><p className="agent-label"><SearchCheck /> CORRELATED EVIDENCE</p><ol>{investigation.evidence.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div>
