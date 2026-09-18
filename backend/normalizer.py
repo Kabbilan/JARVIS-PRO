@@ -78,7 +78,10 @@ def _infer_type(a):
     if stripped in KNOWN_TYPES:return stripped,k
     for phrase,t in PHRASES.items():
         if phrase in semantic_text:return t,k or "semantic_text"
-    # Unknown security events remain analyzable without pretending they are a known attack.
+    # Unknown vendor event types should go through the semantic AI mapper rather
+    # than being silently downgraded to benign/normal activity.
+    if v is not None:
+        return None,k
     security_keys={"severity","priority","risk","risk_score","source_ip","src_ip","destination_ip","dst_ip","hostname","user","username","event_id","alert_id","incident_id","rule_name","signature"}
     if any(str(x).lower() in security_keys for x in a): return "normal_activity",k or "security_context"
     return None,None
@@ -194,7 +197,9 @@ def _ai_normalize(payload):
         response=client.models.generate_content(model=os.getenv("GEMINI_MODEL","gemini-2.5-flash"),contents=prompt,config=types.GenerateContentConfig(response_mime_type="application/json",response_schema=schema))
         data=json.loads(response.text or "{}")
         return data.get("events",[]) if isinstance(data,dict) else []
-    except Exception:return []
+    except Exception as exc:
+        print(f"AI normalization fallback failed: {exc}")
+        return []
 
 
 def normalize_upload(payload:Any):
