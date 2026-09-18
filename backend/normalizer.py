@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from typing import Any
+import re
 
 ALIASES = {
     "timestamp": ("timestamp", "event_time", "datetime", "time"),
@@ -103,24 +104,103 @@ def normalize_uploaded_alert(alert: dict[str, Any], index: int = 0):
     return result, mappings
 
 
+def _walk_objects(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_objects(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_objects(child)
+
+
+def _report_incidents(payload):
+    if not isinstance(payload, dict):
+        return []
+    report = payload.get("soc_report", payload)
+    if not isinstance(report, dict):
+        return []
+    report_time = report.get("timestamp") or report.get("datetime") or report.get("event_time")
+    incidents = report.get("active_incidents") or report.get("incidents")
+    if not report_time or not isinstance(incidents, list):
+        return []
+    converted = []
+    for item in incidents:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or item.get("message") or item.get("description") or "").lower()
+        # Only map explicit, security-meaningful phrases; never invent an attack type from arbitrary text.
+        phrase_map = {
+            "failed login": "failed_login", "brute force": "failed_login",
+            "suspicious login": "suspicious_login", "impossible travel": "suspicious_login",
+            "privilege escalation": "privilege_escalation",
+            "data exfiltration": "data_exfiltration", "exfiltration": "data_exfiltration",
+            "outbound traffic": "c2_connection", "command and control": "c2_connection",
+            "malware": "malware", "ransomware": "malware",
+            "defense evasion": "defense_evasion",
+        }
+        event_type = next((kind for phrase, kind in phrase_map.items() if phrase in title), None)
+        if not event_type:
+            continue
+        converted.append({
+            "timestamp": item.get("timestamp") or report_time,
+            "event_id": item.get("id") or item.get("event_id"),
+            "action": event_type,
+            "severity": item.get("severity"),
+            "message": item.get("title") or item.get("message"),
+            "source_ip": item.get("source_ip") or item.get("src_ip"),
+            "username": item.get("user") or item.get("username"),
+            "hostname": item.get("device") or item.get("hostname"),
+        })
+    return converted
+
+
 def normalize_upload(payload: Any):
+    # First handle known wrappers and raw arrays/objects.
     if isinstance(payload, list):
-        alerts = payload
-    elif isinstance(payload, dict) and "alerts" in payload:
-        alerts = payload["alerts"]
-    elif isinstance(payload, dict):
-        alerts = [payload]
+        candidates = payload
+    elif isinstance(payload, dict) and isinstance(payload.get("alerts"), list):
+        candidates = payload["alerts"]
     else:
-        raise UnsupportedAlertSchema("Valid JSON, but unsupported security-alert schema.")
+        candidates = [payload] if isinstance(payload, dict) else []
 
-    if not isinstance(alerts, list) or not 1 <= len(alerts) <= 500:
+    normalized, feedback, rejected = [], {}, []
+    for index, alert in enumerate(candidates):
+        try:
+            event, mappings = normalize_uploaded_alert(alert, index)
+            normalized.append(event)
+            for canonical, source_key in mappings.items():
+                if source_key:
+                    feedback[f"{source_key} → {canonical}"] = True
+        except UnsupportedAlertSchema:
+            rejected.append(alert)
+
+    # Generic nested JSON: discover embedded alert-like objects anywhere in the document.
+    if not normalized and isinstance(payload, (dict, list)):
+        for obj in _walk_objects(payload):
+            try:
+                event, mappings = normalize_uploaded_alert(obj, len(normalized))
+                normalized.append(event)
+                for canonical, source_key in mappings.items():
+                    if source_key:
+                        feedback[f"{source_key} → {canonical}"] = True
+            except UnsupportedAlertSchema:
+                pass
+
+    # SOC reports/incident summaries: safely adapt recognized incident semantics into events.
+    if not normalized:
+        for alert in _report_incidents(payload):
+            event, mappings = normalize_uploaded_alert(alert, len(normalized))
+            normalized.append(event)
+            for canonical, source_key in mappings.items():
+                if source_key:
+                    feedback[f"{source_key} → {canonical}"] = True
+        if normalized:
+            feedback["SOC report → security events"] = True
+
+    if not normalized:
+        raise UnsupportedAlertSchema("Valid JSON, but no safely inferable security events were found. SentraPixel searched nested objects, common wrappers, aliases, and SOC incident summaries.")
+
+    if len(normalized) > 500:
         raise UnsupportedAlertSchema("Security alert upload must contain between 1 and 500 alerts.")
-
-    normalized, feedback = [], {}
-    for index, alert in enumerate(alerts):
-        event, mappings = normalize_uploaded_alert(alert, index)
-        normalized.append(event)
-        for canonical, source_key in mappings.items():
-            if source_key:
-                feedback[f"{source_key} → {canonical}"] = True
     return normalized, list(feedback)
