@@ -401,3 +401,10 @@ main:after{z-index:-1!important;opacity:.65}
 .risk-factor-name{display:block;font-weight:700;color:#40586d}
 .risk-evidence{display:block!important;margin-top:3px;font:500 8.5px/1.4 'DM Sans'!important;color:#8296a8!important;white-space:normal!important}
 .risk-legend-row{align-items:start!important}
+
+
+/* Remove glass blur for sharper dashboard rendering */
+.scenario-panel,.card,.incident-hero,.metric,.empty-state,.analysis-loader,.history-panel,.agent-card{
+ backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important
+}
