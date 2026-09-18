@@ -39,12 +39,13 @@ STAGES = {
     "privilege_escalation": "Privilege Escalation", "sensitive_access": "Collection",
     "data_exfiltration": "Data Exfiltration", "defense_evasion": "Defense Evasion",
     "normal_login": "Verified Login", "normal_activity": "Normal Activity",
+    "malware": "Execution", "c2_connection": "Command and Control",
 }
 
 DEFAULT_SEVERITY = {
     "failed_login": 15, "suspicious_login": 40, "privilege_escalation": 60,
     "sensitive_access": 65, "data_exfiltration": 85, "defense_evasion": 70,
-    "normal_login": 5, "normal_activity": 3,
+    "normal_login": 5, "normal_activity": 3, "malware": 75, "c2_connection": 80,
 }
 
 MITRE_TECHNIQUES = {
@@ -54,6 +55,8 @@ MITRE_TECHNIQUES = {
     "sensitive_access": {"id": "T1213", "name": "Data from Information Repositories", "tactic": "Collection"},
     "data_exfiltration": {"id": "T1041", "name": "Exfiltration Over C2 Channel", "tactic": "Exfiltration"},
     "defense_evasion": {"id": "T1562.001", "name": "Impair Defenses", "tactic": "Defense Evasion"},
+    "malware": {"id": "T1204", "name": "User Execution", "tactic": "Execution"},
+    "c2_connection": {"id": "T1071", "name": "Application Layer Protocol", "tactic": "Command and Control"},
 }
 
 
@@ -124,6 +127,8 @@ def severity(events):
         ("sensitive_access", "Sensitive resource accessed", 8),
         ("data_exfiltration", "Large outbound data transfer", 12),
         ("defense_evasion", "Security control evasion", 7),
+        ("malware", "Malware execution detected", 10),
+        ("c2_connection", "Command-and-control connection", 12),
     ]
     for event_type, label, points in additions:
         if event_type in event_types:
@@ -153,6 +158,8 @@ def build_result(events, incident_id=None):
         title = "Possible Data Exfiltration"
     elif "suspicious_login" in event_types and "privilege_escalation" in event_types:
         title = "Account Takeover"
+    elif "malware" in event_types and "c2_connection" in event_types:
+        title = "Correlated Malware / C2 Activity"
     elif malicious:
         title = "Correlated Security Incident"
     else:
@@ -217,6 +224,59 @@ def build_result(events, incident_id=None):
 def analyze_events(raw_events):
     events = [normalize_event(event, index) for index, event in enumerate(raw_events)]
     return build_result(events)
+
+
+def analyze_event_batch(raw_events):
+    """Normalize one upload, cluster evidence-linked alerts, and emit independent incidents."""
+    events = sorted(
+        [normalize_event(event, index) for index, event in enumerate(raw_events)],
+        key=lambda event: minutes(event["time"]),
+    )
+    if not events:
+        return None
+
+    links = build_links(events)
+    by_id = {event["id"]: event for event in events}
+    adjacency = {event["id"]: set() for event in events}
+    for link in links:
+        adjacency[link["from"]].add(link["to"])
+        adjacency[link["to"]].add(link["from"])
+
+    components = []
+    visited = set()
+    for event in events:
+        event_id = event["id"]
+        if event_id in visited or not adjacency[event_id]:
+            continue
+        stack, component_ids = [event_id], []
+        visited.add(event_id)
+        while stack:
+            current = stack.pop()
+            component_ids.append(current)
+            for neighbor in adjacency[current]:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    stack.append(neighbor)
+        components.append(sorted((by_id[item] for item in component_ids), key=lambda item: minutes(item["time"])))
+
+    incidents = []
+    incident_event_ids = set()
+    for component in components:
+        candidate = build_result(component)
+        if candidate and candidate["classification"] == "confirmed_correlated_incident":
+            incidents.append(candidate)
+            incident_event_ids.update(event["id"] for event in component)
+
+    uncorrelated = [event for event in events if event["id"] not in incident_event_ids]
+    return {
+        "batch_id": f"BATCH-{uuid4().hex[:10].upper()}",
+        "raw_alerts": len(events),
+        "incident_count": len(incidents),
+        "correlated_alerts": len(incident_event_ids),
+        "uncorrelated_alerts": len(uncorrelated),
+        "incidents": incidents,
+        "uncorrelated": uncorrelated,
+    }
 
 
 def get_scenarios():
