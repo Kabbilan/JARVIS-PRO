@@ -63,6 +63,11 @@ def test_time_proximity_alone_is_not_correlation_evidence():
     assert result["links"] == []
     assert result["metrics"]["incidents"] == 0
     assert result["metrics"]["noise_reduced"] == 2
+    assert result["title"] == "Uncorrelated High-Risk Alert — Data Exfiltration Signal"
+    assert result["classification"] == "uncorrelated_high_risk_signal"
+    assert "not a confirmed data-exfiltration incident" in result["summary"]
+    assert "source alert severity" in result["classification_reason"]
+    assert len(result["missing_evidence"]) == 3
 
 
 def test_investigation_falls_back_without_api_key(monkeypatch):
