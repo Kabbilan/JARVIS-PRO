@@ -30,6 +30,8 @@ function App() {
   const [investigation, setInvestigation] = useState(null);
   const [investigating, setInvestigating] = useState(false);
   const [investigationError, setInvestigationError] = useState("");
+  const [responsePlan, setResponsePlan] = useState(null);
+  const [verification, setVerification] = useState(null);
   const [reporting, setReporting] = useState(false);
   const [reportError, setReportError] = useState("");
   const [error, setError] = useState("");
@@ -68,6 +70,7 @@ function App() {
     setIncident(null);
     setCurrentAlerts(null);
     setInvestigation(null);
+    setResponsePlan(null); setVerification(null);
     setInvestigationError("");
     setReview(null);
     setReportError("");
@@ -79,6 +82,7 @@ function App() {
     setIncident(null);
     setCurrentAlerts(null);
     setInvestigation(null);
+    setResponsePlan(null); setVerification(null);
     setInvestigationError("");
     setReview(null);
     setReportError("");
@@ -104,7 +108,7 @@ function App() {
       setError("Data Exfiltration scenario is waiting for the backend API. Add scenario ID: data-exfiltration.");
       return;
     }
-    setLoading(true); setIncident(null); setInvestigation(null); setReview(null); setError(""); setReopenedIncident(false); setView("analysis");
+    setLoading(true); setIncident(null); setInvestigation(null); setResponsePlan(null); setVerification(null); setReview(null); setError(""); setReopenedIncident(false); setView("analysis");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       let alerts = null;
@@ -130,7 +134,7 @@ function App() {
   }
 
   async function runInvestigation(alerts = currentAlerts) {
-    setInvestigating(true); setInvestigation(null); setInvestigationError("");
+    setInvestigating(true); setInvestigation(null); setResponsePlan(null); setVerification(null); setInvestigationError("");
     try {
       const custom = Array.isArray(alerts);
       const response = await fetch(custom ? `${API}/api/investigate-alerts` : `${API}/api/investigate/${selected}`, {
@@ -140,7 +144,7 @@ function App() {
       });
       if (!response.ok) throw new Error();
       const result = await response.json();
-      setInvestigation(result.investigation);
+      setInvestigation(result.investigation); setResponsePlan(result.response_plan); setVerification(result.verification);
     } catch {
       setInvestigationError("Investigation Agent response unavailable. The correlated incident remains available below.");
     } finally { setInvestigating(false); }
@@ -169,13 +173,13 @@ function App() {
   }
 
   async function openIncident(incidentId) {
-    setLoading(true); setIncident(null); setInvestigation(null); setError(""); setView("analysis");
+    setLoading(true); setIncident(null); setInvestigation(null); setResponsePlan(null); setVerification(null); setError(""); setView("analysis");
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       const response = await fetch(`${API}/api/incidents/${incidentId}`);
       if (!response.ok) throw new Error();
       const result = await response.json();
-      setIncident(result); setInvestigation(result.investigation || null); setReopenedIncident(true); setApiOnline(true);
+      setIncident(result); setInvestigation(result.investigation || null); setResponsePlan(result.investigation?.response_plan || null); setVerification(result.investigation?.verification || null); setReopenedIncident(true); setApiOnline(true);
     } catch {
       setError("Incident details could not be loaded. Return to Incident History and retry."); setApiOnline(false);
     } finally { setLoading(false); }
@@ -254,7 +258,11 @@ function App() {
             <div className="agent-list"><p className="agent-label"><ListChecks /> NEXT STEPS</p><ol>{investigation.next_steps.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div>
           </div>}
         </section>
-        <section className="card response-card"><div className="response-heading"><CardTitle icon={<LockKeyhole />} label="HUMAN-IN-THE-LOOP" title="Recommended containment plan" /><button className="report-button" onClick={downloadReport} disabled={reporting}>{reporting ? <LoaderCircle className="button-spinner" /> : <Download />}{reporting ? "Generating report" : "Download incident report"}</button></div><div className="actions">{incident.recommended_actions.map((action, index) => <div key={action}><span>{String(index + 1).padStart(2, "0")}</span>{action}</div>)}</div>{reportError && <div className="error" role="alert"><XCircle />{reportError}</div>}{!review ? <div className="review-buttons"><button className="reject" onClick={() => submitReview("rejected")} disabled={Boolean(reviewing)}>{reviewing === "rejected" ? <LoaderCircle className="button-spinner" /> : <XCircle />} Reject plan</button><button className="approve" onClick={() => submitReview("approved")} disabled={Boolean(reviewing)}>{reviewing === "approved" ? <LoaderCircle className="button-spinner" /> : <CheckCircle2 />} Approve simulated response</button></div> : <div className={`review-result ${review.decision}`}>{review.decision === "approved" ? <CheckCircle2 /> : <XCircle />}{review.message}</div>}</section>
+        {(responsePlan || verification) && <section className="multi-agent-grid">
+          {responsePlan && <article className="card planner-card"><CardTitle icon={<ListChecks />} label="RESPONSE PLANNER AGENT" title="Containment and recovery plan" /><div className="agent-meta"><span className={`priority ${responsePlan.priority}`}>{responsePlan.priority} priority</span><span className="provider-badge">{responsePlan.provider === "gemini" ? "GEMINI GENERATED" : "DETERMINISTIC FALLBACK"}</span></div><div className="plan-columns"><div><p className="agent-label">IMMEDIATE ACTIONS</p><ol>{responsePlan.immediate_actions.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div><div><p className="agent-label">PRESERVE EVIDENCE</p><ol>{responsePlan.evidence_to_preserve.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div><div><p className="agent-label">RECOVERY</p><ol>{responsePlan.recovery_steps.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ol></div></div><div className="approval-lock"><LockKeyhole /> Plan only — human approval required before execution</div></article>}
+          {verification && <article className={`card verifier-card ${verification.verdict}`}><CardTitle icon={<ShieldCheck />} label="INDEPENDENT VERIFIER" title="Evidence and safety validation" /><div className="verification-score"><strong>{verification.checks_passed}/{verification.checks_total}</strong><div><span>{verification.verdict.replace("_", " ")}</span><small>{verification.provider === "evidence-policy" ? "DETERMINISTIC EVIDENCE CHECK" : "AI VERIFIED"}</small></div></div><div className="verification-list">{verification.supported_checks.map((item, index) => <p className="passed" key={`${item}-${index}`}><CheckCircle2 />{item}</p>)}{verification.warnings.map((item, index) => <p className="warning" key={`${item}-${index}`}><AlertTriangle />{item}</p>)}</div></article>}
+        </section>}
+        <section className="card response-card"><div className="response-heading"><CardTitle icon={<LockKeyhole />} label="HUMAN-IN-THE-LOOP" title="Recommended containment plan" /><button className="report-button" onClick={downloadReport} disabled={reporting}>{reporting ? <LoaderCircle className="button-spinner" /> : <Download />}{reporting ? "Generating report" : "Download incident report"}</button></div><div className="actions">{(responsePlan?.immediate_actions || incident.recommended_actions).map((action, index) => <div key={action}><span>{String(index + 1).padStart(2, "0")}</span>{action}</div>)}</div>{reportError && <div className="error" role="alert"><XCircle />{reportError}</div>}{!review ? <div className="review-buttons"><button className="reject" onClick={() => submitReview("rejected")} disabled={Boolean(reviewing)}>{reviewing === "rejected" ? <LoaderCircle className="button-spinner" /> : <XCircle />} Reject plan</button><button className="approve" onClick={() => submitReview("approved")} disabled={Boolean(reviewing)}>{reviewing === "approved" ? <LoaderCircle className="button-spinner" /> : <CheckCircle2 />} Approve simulated response</button></div> : <div className={`review-result ${review.decision}`}>{review.decision === "approved" ? <CheckCircle2 /> : <XCircle />}{review.message}</div>}</section>
       </>}
       </section>}
     </main>
