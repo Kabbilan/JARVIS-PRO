@@ -1,7 +1,11 @@
 import json
+import logging
 import os
 
 from pydantic import BaseModel, Field
+
+
+logger = logging.getLogger("sentrapixel.ai")
 
 
 class InvestigationResult(BaseModel):
@@ -21,7 +25,7 @@ def fallback_investigation(incident):
 
     if incident.get("metrics", {}).get("incidents", 0):
         narrative = (
-            f"AEGIS identified a {incident.get('severity', 'unknown')} incident with score "
+            f"SentraPixel identified a {incident.get('severity', 'unknown')} incident with score "
             f"{incident.get('score', 0)}. The observed sequence was: {' -> '.join(stages)}. "
             "The investigation is based on deterministic correlation evidence from the security events."
         )
@@ -33,7 +37,7 @@ def fallback_investigation(incident):
         ]
     else:
         narrative = (
-            "AEGIS did not identify a high-confidence malicious incident. "
+            "SentraPixel did not identify a high-confidence malicious incident. "
             "The activity should be verified by an analyst before closure."
         )
         next_steps = [
@@ -53,6 +57,7 @@ def fallback_investigation(incident):
 def generate_investigation(incident):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
+        logger.warning("Gemini investigation fallback: GEMINI_API_KEY is not configured")
         return fallback_investigation(incident)
 
     try:
@@ -60,7 +65,7 @@ def generate_investigation(incident):
 
         client = genai.Client(api_key=api_key)
         prompt = (
-            "You are the investigation agent inside AEGIS SOC. Analyze only the supplied incident JSON. "
+            "You are the investigation agent inside SentraPixel SOC. Analyze only the supplied incident JSON. "
             "Do not invent evidence or facts not present in the data. Explain what happened, cite the strongest "
             "correlation evidence, and give safe analyst investigation next steps. Any response action must remain "
             "subject to human approval.\n\n"
@@ -83,5 +88,6 @@ def generate_investigation(incident):
         )
         parsed = json.loads(interaction.output_text)
         return InvestigationResult(provider="gemini", **parsed).model_dump()
-    except Exception:
+    except Exception as exc:
+        logger.exception("Gemini investigation failed (%s): %s", type(exc).__name__, exc)
         return fallback_investigation(incident)
