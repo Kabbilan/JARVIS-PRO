@@ -33,7 +33,7 @@ def save_incident(incident: dict[str, Any]) -> bool:
     row = incident_row(incident)
     existing = _incident_cache.get(row["incident_id"], {})
     _incident_cache[row["incident_id"]] = {
-        **existing, **row,
+        **existing, **incident,
         "created_at": existing.get("created_at") or datetime.now(timezone.utc).isoformat(),
     }
     client = get_supabase()
@@ -66,6 +66,35 @@ def list_incidents(limit: int = 50) -> list[dict[str, Any]]:
     return sorted(_incident_cache.values(), key=lambda row: row.get("created_at", ""), reverse=True)[:limit]
 
 
+def get_incident(incident_id: str) -> dict[str, Any] | None:
+    cached = _incident_cache.get(incident_id)
+    if cached:
+        return cached
+    client = get_supabase()
+    if not client:
+        return None
+    try:
+        incident_response = client.table("incidents").select("*").eq("incident_id", incident_id).limit(1).execute()
+        if not incident_response.data:
+            return None
+        incident = incident_response.data[0]
+        event_response = client.table("incident_events").select("details").eq("incident_id", incident_id).order("event_time").execute()
+        events = [row.get("details", {}) for row in (event_response.data or [])]
+        investigation_response = client.table("investigations").select("provider,narrative,evidence,next_steps,created_at").eq("incident_id", incident_id).order("created_at", desc=True).limit(1).execute()
+        if events:
+            from correlation import build_result
+            reconstructed = build_result(events, incident_id)
+            incident = {**reconstructed, **incident, "events": reconstructed["events"], "links": reconstructed["links"]}
+        else:
+            incident["events"] = []
+            incident["links"] = []
+        incident["investigation"] = investigation_response.data[0] if investigation_response.data else None
+        return incident
+    except Exception as exc:
+        logger.exception("Supabase incident detail read failed: %s", exc)
+        return None
+
+
 def incident_summary(incidents: list[dict[str, Any]]) -> dict[str, int]:
     total_alerts = sum(int(row.get("metrics", {}).get("raw_alerts", 0)) for row in incidents)
     noise_reduced = sum(int(row.get("metrics", {}).get("noise_reduced", 0)) for row in incidents)
@@ -81,6 +110,8 @@ def incident_summary(incidents: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def save_investigation(incident_id: str, investigation: dict[str, Any]) -> bool:
+    if incident_id in _incident_cache:
+        _incident_cache[incident_id]["investigation"] = investigation
     client = get_supabase()
     if not client:
         return True
