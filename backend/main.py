@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any, Literal
 from ai_agent import fallback_investigation, fallback_response_plan, generate_agent_pipeline, generate_investigation, verify_agent_outputs
-from correlation import analyze_events, analyze_scenario, get_scenarios
+from correlation import analyze_event_batch, analyze_events, analyze_scenario, get_scenarios
 from database import get_incident, incident_summary, list_incidents, save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
 from fastapi.responses import Response
@@ -133,11 +133,23 @@ def analyze(scenario_id: str):
 
 @app.post("/api/analyze-alerts")
 def analyze_raw_alerts(payload: AnalyzeAlertsRequest):
-    result = analyze_events([alert.as_event() for alert in payload.alerts])
-    if not result:
+    batch = analyze_event_batch([alert.as_event() for alert in payload.alerts])
+    if not batch:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
-    save_incident(result)
-    return result
+    for incident in batch["incidents"]:
+        save_incident(incident)
+    return batch
+
+
+@app.post("/api/incidents/{incident_id}/investigate")
+async def investigate_incident(incident_id: str):
+    incident = get_incident(incident_id)
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+    pipeline = await agent_pipeline_with_timeout(incident)
+    combined = {**pipeline["investigation"], "response_plan": pipeline["response_plan"], "verification": pipeline["verification"]}
+    save_investigation(incident_id, combined)
+    return {"incident_id": incident_id, **pipeline}
 
 
 @app.post("/api/investigate/{scenario_id}")
