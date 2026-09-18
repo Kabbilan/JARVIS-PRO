@@ -8,7 +8,8 @@ const scenarioCatalog = [
   { id: "benign-login", label: "Benign Activity", description: "Validate normal user activity and reduce authentication alert noise.", icon: ShieldCheck },
 ];
 const fallbackScenarios = [
-  { id: "account-takeover", name: "Account Takeover + Data Exfiltration", description: "Compromised identity escalates privileges and exports confidential data.", event_count: 6 },
+  { id: "account-takeover", name: "Account Takeover", description: "Repeated login failures are followed by suspicious access and privilege escalation.", event_count: 4 },
+  { id: "data-exfiltration", name: "Data Exfiltration", description: "Sensitive data is collected and transferred to an unusual external destination.", event_count: 4 },
   { id: "benign-login", name: "Benign Authentication Noise", description: "Legitimate password mistakes followed by normal activity.", event_count: 3 },
 ];
 const loadingStages = ["Normalizing telemetry", "Linking shared entities", "Calculating severity", "Building incident story"];
@@ -177,7 +178,7 @@ function App() {
     <aside>
       <div className="brand"><div className="brand-mark"><ShieldCheck /></div><div><strong>SentraPixel</strong><span>Autonomous SOC Intelligence Platform</span></div></div>
       <nav aria-label="Primary navigation"><button className={view === "command" ? "active" : ""} onClick={() => setView("command")}><Radar /> Command Center</button><button><Activity /> Live Events</button><button className={view === "incidents" ? "active" : ""} onClick={openHistory}><AlertTriangle /> Incidents</button><button><BrainCircuit /> AI Investigation</button></nav>
-      <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === false ? "Waiting for FastAPI on port 8000" : "Rules, evidence, and analyst review active"}</small></div>
+      <div className={`system-card ${apiOnline === false ? "offline" : ""}`}><span className="pulse" /> {apiOnline === null ? "CONNECTING TO ENGINE" : apiOnline === false ? "ENGINE DISCONNECTED" : "CORRELATION ENGINE ONLINE"}<small>{apiOnline === null ? "Verifying production API" : apiOnline === false ? "Backend connection unavailable" : "Rules, evidence, and analyst review active"}</small></div>
     </aside>
     <main>
       <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
