@@ -125,3 +125,28 @@ def test_report_is_pdf(monkeypatch):
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert response.content.startswith(b"%PDF")
+
+
+def test_analyze_alerts_returns_batch_and_persists_each_incident(monkeypatch):
+    saved = []
+    batch = {
+        "batch_id": "BATCH-1", "raw_alerts": 5, "incident_count": 2,
+        "correlated_alerts": 4, "uncorrelated_alerts": 1,
+        "incidents": [{"incident_id": "INC-1"}, {"incident_id": "INC-2"}],
+        "uncorrelated": [{"id": "N1"}],
+    }
+    monkeypatch.setattr(main, "analyze_event_batch", lambda alerts: batch)
+    monkeypatch.setattr(main, "save_incident", lambda incident: saved.append(incident["incident_id"]) or True)
+    response = client.post("/api/analyze-alerts", json={"alerts": [{"time": "09:00", "type": "failed_login"}]})
+    assert response.status_code == 200
+    assert response.json()["incident_count"] == 2
+    assert saved == ["INC-1", "INC-2"]
+
+
+def test_stable_incident_id_drives_investigation(monkeypatch):
+    incident = {"incident_id": "INC-STABLE", "title": "Account Takeover", "severity": "critical", "score": 95, "events": [], "links": [], "recommended_actions": []}
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: incident if incident_id == "INC-STABLE" else None)
+    monkeypatch.setattr(main, "save_investigation", lambda incident_id, result: incident_id == "INC-STABLE")
+    response = client.post("/api/incidents/INC-STABLE/investigate")
+    assert response.status_code == 200
+    assert response.json()["incident_id"] == "INC-STABLE"
