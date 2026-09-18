@@ -197,7 +197,14 @@ def normalize_upload(payload:Any):
         has_event_child=any(_infer_type(x)[0] for x in child_dicts)
         if not has_event_child:candidates.append(o)
     normalized=[];feedback={};seen=set()
-    for o in candidates:
+    # Always try the upload/root object first. A real alert can contain nested
+    # security metadata; those children must enrich the parent, not replace it.
+    roots = payload if isinstance(payload,list) else [payload]
+    ordered=[]
+    for o in list(roots)+candidates:
+        if isinstance(o,dict) and all(o is not existing for existing in ordered):
+            ordered.append(o)
+    for o in ordered:
         try:
             event,m=normalize_uploaded_alert(o,len(normalized),payload)
             if event["id"] in seen:continue
