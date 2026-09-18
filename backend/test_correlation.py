@@ -1,4 +1,4 @@
-from ai_agent import generate_investigation
+from ai_agent import fallback_investigation, fallback_response_plan, generate_agent_pipeline, generate_investigation, verify_agent_outputs
 from correlation import analyze_events, analyze_scenario
 
 
@@ -73,3 +73,22 @@ def test_investigation_falls_back_without_api_key(monkeypatch):
     assert investigation["narrative"]
     assert investigation["evidence"]
     assert investigation["next_steps"]
+
+
+def test_multi_agent_pipeline_has_safe_fallback(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    incident = analyze_scenario("account-takeover")
+    pipeline = generate_agent_pipeline(incident)
+    assert pipeline["investigation"]["provider"] == "fallback"
+    assert pipeline["response_plan"]["human_approval_required"] is True
+    assert pipeline["verification"]["verdict"] == "verified"
+    assert pipeline["verification"]["checks_passed"] == pipeline["verification"]["checks_total"]
+
+
+def test_verifier_flags_low_evidence_activity():
+    incident = analyze_scenario("benign-login")
+    investigation = fallback_investigation(incident)
+    response_plan = fallback_response_plan(incident)
+    verification = verify_agent_outputs(incident, investigation, response_plan)
+    assert verification["verdict"] == "needs_review"
+    assert verification["warnings"]
