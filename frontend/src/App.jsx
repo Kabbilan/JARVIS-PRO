@@ -122,15 +122,18 @@ function App() {
       let alerts = null;
       if (inputMode === "custom") {
         const parsed = JSON.parse(alertText);
-        alerts = Array.isArray(parsed) ? parsed : parsed.alerts;
+        alerts = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.alerts) ? parsed.alerts : parsed && typeof parsed === "object" ? [parsed] : null;
         if (!Array.isArray(alerts) || !alerts.length) throw new Error("invalid-alerts");
       }
       const response = await fetch(inputMode === "custom" ? `${API}/api/analyze-alerts` : `${API}/api/analyze/${selected}`, {
         method: "POST",
         headers: inputMode === "custom" ? { "Content-Type": "application/json" } : undefined,
-        body: inputMode === "custom" ? JSON.stringify({ alerts }) : undefined,
+        body: inputMode === "custom" ? JSON.stringify(alerts.length === 1 ? alerts[0] : { alerts }) : undefined,
       });
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const failure = await response.json().catch(() => ({}));
+        throw new Error(failure.detail || "request-failed");
+      }
       const result = await response.json();
       setApiOnline(true);
       setCurrentAlerts(alerts);
@@ -142,8 +145,10 @@ function App() {
         runInvestigation(null);
       }
     } catch (analysisError) {
-      if (analysisError.message === "invalid-alerts" || analysisError instanceof SyntaxError) setError("Invalid JSON. Provide a non-empty alert array or an object with an alerts array.");
-      else { setError("Correlation engine unavailable. Confirm the FastAPI service is running on port 8000."); setApiOnline(false); }
+      if (analysisError instanceof SyntaxError) setError("Invalid JSON. Check the JSON syntax and retry.");
+      else if (analysisError.message === "invalid-alerts") setError("Valid JSON, but no security alerts were found.");
+      else if (analysisError.message && analysisError.message !== "request-failed") setError(analysisError.message);
+      else { setError("Correlation engine unavailable. Confirm the FastAPI service is running."); setApiOnline(false); }
       setView("command");
     } finally { setLoading(false); }
   }
