@@ -1,11 +1,15 @@
 import json
 import logging
 import os
+import hashlib
+import time
 
 from pydantic import BaseModel, Field
 
 
 logger = logging.getLogger("sentrapixel.ai")
+_investigation_cache = {}
+_rate_limited_until = 0.0
 
 
 class InvestigationResult(BaseModel):
@@ -54,10 +58,23 @@ def fallback_investigation(incident):
     ).model_dump()
 
 
+def investigation_cache_key(incident):
+    normalized = json.dumps(incident, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(normalized.encode()).hexdigest()
+
+
 def generate_investigation(incident):
+    global _rate_limited_until
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         logger.warning("Gemini investigation fallback: GEMINI_API_KEY is not configured")
+        return fallback_investigation(incident)
+
+    cache_key = investigation_cache_key(incident)
+    if cache_key in _investigation_cache:
+        return _investigation_cache[cache_key]
+
+    if time.monotonic() < _rate_limited_until:
         return fallback_investigation(incident)
 
     try:
@@ -92,7 +109,15 @@ def generate_investigation(incident):
             response_format={"type": "text", "mime_type": "application/json", "schema": schema},
         )
         parsed = json.loads(interaction.output_text)
-        return InvestigationResult(provider="gemini", **parsed).model_dump()
+        result = InvestigationResult(provider="gemini", **parsed).model_dump()
+        _investigation_cache[cache_key] = result
+        return result
     except Exception as exc:
-        logger.exception("Gemini investigation failed (%s): %s", type(exc).__name__, exc)
+        error_text = str(exc).lower()
+        if "429" in error_text or "rate limit" in error_text or "resource_exhausted" in error_text:
+            cooldown = max(60, int(os.getenv("GEMINI_RATE_LIMIT_COOLDOWN_SECONDS", "300")))
+            _rate_limited_until = time.monotonic() + cooldown
+            logger.warning("Gemini quota/rate limit reached; using fallback during cooldown")
+        else:
+            logger.exception("Gemini investigation failed (%s): %s", type(exc).__name__, exc)
         return fallback_investigation(incident)
