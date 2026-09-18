@@ -69,6 +69,13 @@ MITRE_TECHNIQUES = {
 }
 
 
+def event_datetime(event):
+    value = event.get("timestamp")
+    if value:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return datetime.strptime(event["time"], "%H:%M")
+
+
 def minutes(value):
     parsed = datetime.strptime(value, "%H:%M")
     return parsed.hour * 60 + parsed.minute
@@ -78,7 +85,7 @@ def normalize_event(event, index):
     event_type = str(event.get("type", "normal_activity")).strip().lower().replace(" ", "_")
     return {
         "id": str(event.get("id") or f"RAW-{index + 1:03d}"),
-        "time": str(event.get("time") or "00:00"),
+        "timestamp": event.get("timestamp"),\n        "time": str(event.get("time") or "00:00"),
         "source": str(event.get("source") or "Unknown"),
         "type": event_type,
         "label": str(event.get("label") or event_type.replace("_", " ").title()),
@@ -99,7 +106,7 @@ def correlation_reason(left, right):
     if left["ip"] != "unknown" and left["ip"] == right["ip"]:
         reasons.append("same IP")
     shared_entity_count = len(reasons)
-    gap = minutes(right["time"]) - minutes(left["time"])
+    gap = int((event_datetime(right) - event_datetime(left)).total_seconds() // 60)
     if shared_entity_count == 0 or not 0 <= gap <= 15:
         return ""
     if (left["type"], right["type"]) in ATTACK_RELATIONSHIPS:
@@ -116,7 +123,7 @@ def build_links(events):
             reason = correlation_reason(events[left_index], events[right_index])
             if reason:
                 shared_entities = reason.count("same ")
-                gap = minutes(events[right_index]["time"]) - minutes(events[left_index]["time"])
+                gap = int((event_datetime(events[right_index]) - event_datetime(events[left_index])).total_seconds() // 60)
                 candidates.append((shared_entities, -gap, left_index, reason))
         if candidates:
             _, _, left_index, reason = max(candidates)
@@ -153,7 +160,7 @@ def severity(events):
 def build_result(events, incident_id=None):
     if not events:
         return None
-    events = sorted(events, key=lambda event: minutes(event["time"]))
+    events = sorted(events, key=event_datetime)
     links = build_links(events)
     score, level, factors = severity(events)
     event_types = {event["type"] for event in events}
