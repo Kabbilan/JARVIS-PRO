@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import Any, Literal
 from ai_agent import generate_investigation
 from correlation import analyze_events, analyze_scenario, get_scenarios
-from database import list_incidents, save_incident, save_investigation, save_review
+from database import incident_summary, list_incidents, save_incident, save_investigation, save_review
 from report_generator import generate_incident_report
 from fastapi.responses import Response
 
@@ -64,7 +64,8 @@ def scenarios():
 
 @app.get("/api/incidents")
 def incidents():
-    return {"incidents": list_incidents()}
+    rows = list_incidents()
+    return {"incidents": rows, "summary": incident_summary(rows)}
 
 
 @app.post("/api/analyze/{scenario_id}")

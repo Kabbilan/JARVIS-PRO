@@ -66,6 +66,20 @@ def list_incidents(limit: int = 50) -> list[dict[str, Any]]:
     return sorted(_incident_cache.values(), key=lambda row: row.get("created_at", ""), reverse=True)[:limit]
 
 
+def incident_summary(incidents: list[dict[str, Any]]) -> dict[str, int]:
+    total_alerts = sum(int(row.get("metrics", {}).get("raw_alerts", 0)) for row in incidents)
+    noise_reduced = sum(int(row.get("metrics", {}).get("noise_reduced", 0)) for row in incidents)
+    return {
+        "total": len(incidents),
+        "critical": sum(row.get("severity") == "critical" for row in incidents),
+        "approved": sum(row.get("status") == "approved" for row in incidents),
+        "pending": sum(row.get("status") in {"open", "awaiting_review", None} for row in incidents),
+        "total_alerts": total_alerts,
+        "noise_reduced": noise_reduced,
+        "noise_reduction_percent": round((noise_reduced / total_alerts) * 100) if total_alerts else 0,
+    }
+
+
 def save_investigation(incident_id: str, investigation: dict[str, Any]) -> bool:
     client = get_supabase()
     if not client:

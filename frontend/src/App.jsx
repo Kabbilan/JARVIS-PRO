@@ -40,6 +40,7 @@ function App() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [historySummary, setHistorySummary] = useState({ total: 0, critical: 0, approved: 0, pending: 0, noise_reduction_percent: 0 });
 
   useEffect(() => {
     fetch(`${API}/api/scenarios`).then((response) => {
@@ -143,7 +144,7 @@ function App() {
       const response = await fetch(`${API}/api/incidents`);
       if (!response.ok) throw new Error();
       const result = await response.json();
-      setHistory(result.incidents || []); setApiOnline(true);
+      setHistory(result.incidents || []); setHistorySummary(result.summary || {}); setApiOnline(true);
     } catch {
       setHistoryError("Incident history is unavailable. Check the backend connection."); setApiOnline(false);
     } finally { setHistoryLoading(false); }
@@ -181,7 +182,7 @@ function App() {
     <main>
       <header><div><p className="eyebrow">FC-04 / SECURITY OPERATIONS</p><h1>{view === "command" ? "Incident Correlation Command Center" : "Incident History"}</h1><p>{view === "command" ? "Correlate fragmented alerts into an evidence-backed incident." : "Review analyzed incidents, severity, score, and analyst decisions."}</p></div><div className="analyst"><span>KM</span><div><strong>Lead Analyst</strong><small>Human approval enabled</small></div></div></header>
 
-      {view === "incidents" ? <IncidentHistory incidents={history} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : <>
+      {view === "incidents" ? <IncidentHistory incidents={history} summary={historySummary} loading={historyLoading} error={historyError} onRefresh={openHistory} onBack={() => setView("command")} /> : <>
       <section className="scenario-panel">
         <div className="panel-heading"><div><p className="section-label">INVESTIGATION INPUT</p><h2>{inputMode === "scenario" ? "Choose an investigation scenario" : "Analyze your own security alerts"}</h2></div><span className="api-label"><CircleDot /> Live API</span></div>
         <div className="input-tabs"><button className={inputMode === "scenario" ? "active" : ""} onClick={() => switchInputMode("scenario")}><Radar /> Demo scenarios</button><button className={inputMode === "custom" ? "active" : ""} onClick={() => switchInputMode("custom")}><FileJson /> JSON alerts</button></div>
@@ -224,17 +225,27 @@ function App() {
   </div>;
 }
 
-function Metric({ label, value, tone }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>current scenario</small></div>; }
+function Metric({ label, value, tone, caption = "current scenario" }) { return <div className={`metric ${tone}`}><span>{label}</span><strong>{value}</strong><small>{caption}</small></div>; }
 function CardTitle({ icon, label, title }) { return <div className="card-title"><span>{icon}</span><div><p className="section-label">{label}</p><h3>{title}</h3></div></div>; }
 function EvidenceLink({ links, eventId }) {
   const link = links.find((item) => item.to === eventId);
   return link ? <em><Link2 size={12}/>{link.reason}</em> : null;
 }
-function IncidentHistory({ incidents, loading, error, onRefresh, onBack }) {
+function IncidentHistory({ incidents, summary, loading, error, onRefresh, onBack }) {
+  const [query, setQuery] = useState("");
+  const [severity, setSeverity] = useState("all");
+  const [status, setStatus] = useState("all");
+  const filtered = useMemo(() => incidents.filter((item) => {
+    const matchesQuery = `${item.title} ${item.incident_id}`.toLowerCase().includes(query.toLowerCase());
+    const matchesSeverity = severity === "all" || item.severity === severity;
+    const matchesStatus = status === "all" || item.status === status;
+    return matchesQuery && matchesSeverity && matchesStatus;
+  }), [incidents, query, severity, status]);
   return <section className="history-panel">
     <div className="history-toolbar"><div><p className="section-label">CASE RECORDS</p><h2>Analyzed incidents</h2></div><div><button onClick={onBack}>New analysis</button><button className="refresh" onClick={onRefresh} disabled={loading}>{loading ? <LoaderCircle className="button-spinner" /> : <Activity />} Refresh</button></div></div>
     {error && <div className="error" role="alert"><XCircle />{error}</div>}
-    {loading ? <div className="history-state"><LoaderCircle className="button-spinner" /><span>Loading incident history</span></div> : !incidents.length ? <div className="history-state"><FileSearch /><strong>No incidents recorded yet</strong><span>Run a demo scenario or upload security alerts to create the first incident.</span><button onClick={onBack}>Open Command Center</button></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Score</th><th>Alerts</th><th>Status</th><th>Created</th></tr></thead><tbody>{incidents.map((item) => <tr key={item.incident_id}><td><strong>{item.title}</strong><small>{item.incident_id}</small></td><td><span className={`severity-pill ${item.severity}`}>{item.severity}</span></td><td className="score-cell">{item.score}</td><td>{item.metrics?.raw_alerts ?? "-"}</td><td><span className={`status-pill ${item.status}`}>{String(item.status || "open").replace("_", " ")}</span></td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : "Current session"}</td></tr>)}</tbody></table></div>}
+    {!loading && incidents.length > 0 && <><div className="history-metrics"><Metric label="Total cases" value={summary.total ?? incidents.length} tone="blue" caption="all recorded" /><Metric label="Critical" value={summary.critical ?? 0} tone="red" caption="needs attention" /><Metric label="Approved" value={summary.approved ?? 0} tone="green" caption="analyst reviewed" /><Metric label="Noise reduced" value={`${summary.noise_reduction_percent ?? 0}%`} tone="violet" caption="across alerts" /></div><div className="history-filters"><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search incident or ID" /><select value={severity} onChange={(event) => setSeverity(event.target.value)}><option value="all">All severities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">All statuses</option><option value="awaiting_review">Awaiting review</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><span>{filtered.length} of {incidents.length} cases</span></div></>}
+    {loading ? <div className="history-state"><LoaderCircle className="button-spinner" /><span>Loading incident history</span></div> : !incidents.length ? <div className="history-state"><FileSearch /><strong>No incidents recorded yet</strong><span>Run a demo scenario or upload security alerts to create the first incident.</span><button onClick={onBack}>Open Command Center</button></div> : !filtered.length ? <div className="history-state compact"><SearchCheck /><strong>No matching incidents</strong><span>Change or clear the current filters.</span></div> : <div className="incident-table-wrap"><table className="incident-table"><thead><tr><th>Incident</th><th>Severity</th><th>Score</th><th>Alerts</th><th>Status</th><th>Created</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.incident_id}><td><strong>{item.title}</strong><small>{item.incident_id}</small></td><td><span className={`severity-pill ${item.severity}`}>{item.severity}</span></td><td className="score-cell">{item.score}</td><td>{item.metrics?.raw_alerts ?? "-"}</td><td><span className={`status-pill ${item.status}`}>{String(item.status || "open").replace("_", " ")}</span></td><td>{item.created_at ? new Date(item.created_at).toLocaleString() : "Current session"}</td></tr>)}</tbody></table></div>}
   </section>;
 }
 export default App;
