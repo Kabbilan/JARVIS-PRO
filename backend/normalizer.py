@@ -68,7 +68,11 @@ def _infer_type(a):
     semantic_text=" ".join(semantic_text.split())
     direct=str(v).strip().lower().replace(" ","_").replace("-","_") if v is not None else ""
     # Vendor event names commonly add wrappers such as *_alert, *_event, *_detected.
-    stripped=re.sub(r"_(alert|event|detected|detection|notification|warning)$","",direct)
+    stripped=direct
+    for suffix in ("_notification","_detection","_detected","_warning","_alert","_event"):
+        if stripped.endswith(suffix):
+            stripped=stripped[:-len(suffix)]
+            break
     if direct in KNOWN_TYPES:return direct,k
     if stripped in KNOWN_TYPES:return stripped,k
     for phrase,t in PHRASES.items():
