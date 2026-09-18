@@ -1,14 +1,14 @@
 import asyncio
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Any, Literal
 from ai_agent import fallback_investigation, fallback_response_plan, generate_agent_pipeline, generate_investigation, verify_agent_outputs
 from correlation import analyze_event_batch, analyze_events, analyze_scenario, get_scenarios
 from database import get_incident, incident_summary, list_incidents, save_incident, save_investigation, save_review
-from report_generator import generate_incident_report
+from report_generator import generate_incident_report\nfrom normalizer import normalize_upload, UnsupportedAlertSchema
 from fastapi.responses import Response
 
 app = FastAPI(title="SentraPixel SOC API", version="0.6.0")
@@ -132,10 +132,19 @@ def analyze(scenario_id: str):
 
 
 @app.post("/api/analyze-alerts")
-def analyze_raw_alerts(payload: AnalyzeAlertsRequest):
-    batch = analyze_event_batch([alert.as_event() for alert in payload.alerts])
+async def analyze_raw_alerts(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON.")
+    try:
+        alerts, normalization = normalize_upload(payload)
+    except UnsupportedAlertSchema as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    batch = analyze_event_batch(alerts)
     if not batch:
         raise HTTPException(status_code=400, detail="No valid alerts supplied")
+    batch["normalization"] = normalization
     for incident in batch["incidents"]:
         save_incident(incident)
     return batch
