@@ -32,7 +32,7 @@ def test_invalid_review_decision_rejected():
 def test_review_approved(monkeypatch):
     saved = {}
     monkeypatch.setattr(main, "save_review", lambda incident_id, decision: saved.update(incident_id=incident_id, decision=decision) or True)
-    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved")
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved"})
     assert response.status_code == 200
     assert response.json()["decision"] == "approved"
     assert saved == {"incident_id": "INC-TEST", "decision": "approved"}
@@ -40,7 +40,7 @@ def test_review_approved(monkeypatch):
 
 def test_review_save_failure_returns_500(monkeypatch):
     monkeypatch.setattr(main, "save_review", lambda incident_id, decision: False)
-    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved")
+    response = client.post("/api/review", json={"incident_id": "INC-TEST", "decision": "approved"})
     assert response.status_code == 500
     assert response.json()["detail"] == "Review could not be saved"
 
@@ -52,6 +52,15 @@ def test_incident_history_shape(monkeypatch):
     body = response.json()
     assert body["incidents"] == []
     assert body["summary"]["total"] == 0
+
+
+def test_incident_detail(monkeypatch):
+    incident = {"incident_id": "INC-DETAIL", "title": "Detail", "events": [], "metrics": {}}
+    monkeypatch.setattr(main, "get_incident", lambda incident_id: incident if incident_id == "INC-DETAIL" else None)
+    response = client.get("/api/incidents/INC-DETAIL")
+    assert response.status_code == 200
+    assert response.json()["incident_id"] == "INC-DETAIL"
+    assert client.get("/api/incidents/missing").status_code == 404
 
 
 def test_custom_investigation_persists_incident_first(monkeypatch):
