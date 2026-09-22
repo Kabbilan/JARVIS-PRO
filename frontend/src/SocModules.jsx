@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, BrainCircuit, CheckCircle2, Database, FileSearch, Fingerprint, Globe2, Link2, ListChecks, LockKeyhole, Network, Radar, RefreshCw, Search, Settings, ShieldCheck, SlidersHorizontal, Waypoints, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, CheckCircle2, CircleDot, Database, FileSearch, Fingerprint, Globe2, Link2, ListChecks, LockKeyhole, Network, Radar, RefreshCw, Search, Settings, ShieldCheck, SlidersHorizontal, UserRound, Waypoints, XCircle, Zap } from "lucide-react";
 import "./soc-modules.css";
 
 const API=import.meta.env.VITE_API_URL||"http://localhost:8000";
@@ -7,32 +7,41 @@ const titles={
   posture:["Security Posture","Operational readiness, review load, and defensive coverage."],
   alerts:["Alert Center","Prioritize stored security incidents by severity, score, and analyst state."],
   detection:["Threat Detection","Review high-risk detections and the evidence that caused them to surface."],
-  correlation:["Correlation Engine","Inspect how SentraPixel links events using shared entities and time-window evidence."],
   anomaly:["Anomaly Detection","Surface unusual or high-severity activity that still needs corroborating evidence."],
+  "system-health":["System Health","Check SentraPixel API reachability and operational safety controls."],
   evidence:["Evidence Explorer","Inspect event, identity, device, IP, and correlation evidence for a selected incident."],
   timeline:["Attack Timeline","Reconstruct the selected incident as an ordered sequence of security events."],
   mitre:["MITRE ATT&CK","Explore evidence-backed ATT&CK mappings generated from observed event types."],
+  "entity-graph":["Entity Graph","Explore relationships between users, devices, IP addresses, resources, and incidents."],
+  "case-notes":["Case Notes","Keep analyst notes for investigation handoff and review inside this browser session."],
+  hunt:["Threat Hunting","Hunt across incident titles, summaries, indicators, events, and stored entities."],
   intel:["Threat Intelligence","Build an internal intelligence view from indicators observed across SentraPixel incidents."],
   ioc:["IOC Lookup","Search locally observed IPs, identities, devices, and resources across stored incidents."],
-  ip:["IP Reputation","Review local incident context for IP addresses. External reputation is not claimed without an enrichment provider."],
-  domain:["Domain / URL Analysis","Search locally observed network resources and URLs across incident evidence."],
-  hunt:["Threat Hunting","Hunt across incident titles, summaries, indicators, events, and stored entities."],
+  domain:["IP / Domain Analysis","Search locally observed network resources and URLs across incident evidence."],
+  vulnerability:["Vulnerability Intel","Review observed assets that should be checked by an external vulnerability source."],
+  assets:["Asset Intelligence","Build an asset view from devices and resources observed in incident telemetry."],
+  "ue-analytics":["User & Entity Analytics","Profile identities and entities based on their observed event activity."],
   response:["Response Center","Review response-ready incidents and route consequential actions through analyst approval."],
   actions:["Recommended Actions","Aggregate evidence-grounded response recommendations from current incidents."],
-  containment:["Containment Queue","Track incidents eligible for temporary containment and those still missing confidence."],
+  containment:["Containment Actions","Track incidents eligible for temporary containment and those still missing confidence."],
   approval:["Approval Center","Review incidents waiting for an explicit analyst decision."],
+  playbooks:["Response Playbooks","Use structured analyst-guided playbooks for common incident classes."],
+  escalations:["Escalations","Surface high-priority incidents that should be escalated for analyst attention."],
   "false-positive":["False Positive Review","Review analyst-dismissed incidents and tune future triage decisions."],
   risk:["Risk Analytics","Understand the current risk distribution across recorded incidents."],
   trends:["Incident Trends","Track recorded incident activity and severity distribution."],
   "detection-analytics":["Detection Analytics","Measure severity distribution, alert volume, and correlation efficiency."],
   insights:["AI Insights","Identify incidents with stored investigation output and separate AI narrative from deterministic evidence."],
+  sla:["SLA Analytics","Track pending high-risk cases and analyst review pressure."],
   reports:["Incident Reports","Open incidents and generate evidence-backed PDF reports from the existing report workflow."],
   executive:["Executive Reports","Summarize risk, incident state, and operational outcomes for stakeholders."],
-  "report-history":["Report History","Review report-ready incidents already stored in SentraPixel."],
   sources:["Data Sources","Inspect telemetry sources currently represented in stored incident evidence."],
   integrations:["Integrations","View SentraPixel service connectivity and integration boundaries."],
   rules:["Detection Rules","Review the deterministic correlation and safety rules that drive SentraPixel."],
+  "rule-builder":["Rule Builder","Draft correlation and detection rule concepts without changing production logic."],
+  automation:["Automation","Configure safe analyst-assist workflow toggles for this session."],
   audit:["Audit Logs","Review incident creation and analyst decision state as an operational audit stream."],
+  notifications:["Notifications","Review current SOC notifications generated from risk and review state."],
   settings:["Settings","Configure local workspace preferences for this analyst session."]
 };
 const severityRank={critical:4,high:3,medium:2,low:1};
@@ -102,6 +111,68 @@ function ReportWorkspace({incidents,openIncident}){
   finally{setBusy("")}
  }
  return <section className="wm-panel"><div className="wm-panel-title"><strong>Evidence-backed incident reports</strong><small>{incidents.length} report-ready cases</small></div>{incidents.length?incidents.map(i=><article className="wm-report-row" key={i.incident_id}><div><Severity value={i.severity}/><strong>{i.title}</strong><small>{i.incident_id} · score {i.score}</small></div><button onClick={()=>openIncident(i.incident_id)}><FileSearch/> Open</button><button onClick={()=>download(i)} disabled={busy===i.incident_id}><Database/> {busy===i.incident_id?"Generating…":"PDF"}</button></article>):<Empty icon={FileSearch} title="No reports available"/>}</section>
+}
+
+function EntityWorkspace({incidents,mode}){
+ const {events}=collect(incidents);
+ const field=mode==="users"?"user":mode==="assets"?"device":"resource";
+ const counts={};
+ events.forEach(e=>{const v=e[field];if(v&&v!=="unknown"&&v!=="Unknown")counts[v]=(counts[v]||0)+1});
+ const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,30);
+ return <><div className="wm-metrics"><Metric label="Observed entities" value={rows.length} sub={mode==="users"?"Unique identities":"Unique assets/resources"}/><Metric label="Telemetry events" value={events.length} sub="Evidence population" tone="blue"/><Metric label="High-risk cases" value={incidents.filter(i=>["critical","high"].includes(i.severity)).length} sub="Priority context" tone="red"/></div><section className="wm-panel"><div className="wm-panel-title"><strong>{mode==="users"?"Identity activity":"Asset activity"}</strong><small>Derived from stored incident telemetry</small></div><div className="wm-entity-grid">{rows.length?rows.map(([name,count],i)=><article key={name}><div className="entity-rank">{String(i+1).padStart(2,"0")}</div>{mode==="users"?<UserRound/>:<Database/>}<div><strong>{name}</strong><span>{count} observed event{count===1?"":"s"}</span></div><b>{count}</b></article>):<Empty icon={Database} title="No entities observed"/>}</div></section></>
+}
+
+function EntityGraphWorkspace({incidents}){
+ const {events}=collect(incidents);
+ const users=[...new Set(events.map(e=>e.user).filter(x=>x&&x!=="unknown"))].slice(0,4);
+ const devices=[...new Set(events.map(e=>e.device).filter(x=>x&&x!=="unknown"))].slice(0,4);
+ const ips=[...new Set(events.map(e=>e.ip).filter(x=>x&&x!=="unknown"))].slice(0,4);
+ return <section className="wm-panel"><div className="wm-panel-title"><strong>Relationship graph</strong><small>Identity → device → IP → incident</small></div><div className="entity-graph-stage"><div className="graph-col"><span>IDENTITIES</span>{users.map(x=><b key={x}>{x}</b>)}</div><div className="graph-links">⇄<small>evidence links</small></div><div className="graph-col"><span>DEVICES</span>{devices.map(x=><b key={x}>{x}</b>)}</div><div className="graph-links">⇄<small>network</small></div><div className="graph-col"><span>IP ADDRESSES</span>{ips.map(x=><b key={x}>{x}</b>)}</div><div className="graph-links">⇄<small>cases</small></div><div className="graph-col"><span>INCIDENTS</span>{incidents.slice(0,4).map(x=><b key={x.incident_id}>{x.incident_id}</b>)}</div></div></section>
+}
+
+function CaseNotes(){
+ const[note,setNote]=useState(()=>localStorage.getItem("sentrapixel-case-notes")||"");
+ const[saved,setSaved]=useState(Boolean(note));
+ function save(){localStorage.setItem("sentrapixel-case-notes",note);setSaved(true)}
+ return <section className="wm-panel case-notes"><div className="wm-panel-title"><strong>Analyst case notes</strong><small>Stored locally in this browser</small></div><textarea value={note} onChange={e=>{setNote(e.target.value);setSaved(false)}} placeholder="Add investigation notes, handoff context, evidence questions, or follow-up items…"/><div><span>{saved?"Saved locally":"Unsaved changes"}</span><button onClick={save}><FileSearch/> Save notes</button></div></section>
+}
+
+function SystemHealthWorkspace(){
+ const[state,setState]=useState({loading:true,ok:false});
+ useEffect(()=>{fetch(`${API}/api/health`).then(r=>setState({loading:false,ok:r.ok})).catch(()=>setState({loading:false,ok:false}))},[]);
+ return <><div className="wm-metrics"><Metric label="API status" value={state.loading?"…":state.ok?"ONLINE":"OFFLINE"} sub="SentraPixel backend" tone={state.ok?"green":"red"}/><Metric label="Approval gate" value="ON" sub="Human review enforced" tone="green"/><Metric label="Auto permanent block" value="OFF" sub="Safety control" tone="blue"/><Metric label="Correlation window" value="15m" sub="Entity + time evidence"/></div><section className="wm-panel health-grid"><article><CircleDot/><div><strong>Incident API</strong><span>{state.ok?"Reachable and responding":"Not reachable from this client"}</span></div></article><article><ShieldCheck/><div><strong>Deterministic correlation</strong><span>Evidence relationships remain separate from AI interpretation.</span></div></article><article><LockKeyhole/><div><strong>Response guardrail</strong><span>Consequential response remains behind analyst approval.</span></div></article></section></>
+}
+
+function VulnerabilityWorkspace({incidents}){
+ const {events}=collect(incidents);const assets=[...new Set(events.flatMap(e=>[e.device,e.resource]).filter(x=>x&&x!=="unknown"&&x!=="Unknown"))];
+ return <><div className="wm-note"><ShieldCheck/><div><strong>External CVE feed not configured</strong><span>This workspace identifies observed assets to investigate; it does not invent vulnerability findings.</span></div></div><section className="wm-panel"><div className="wm-entity-grid">{assets.slice(0,30).map((a,i)=><article key={a}><div className="entity-rank">{String(i+1).padStart(2,"0")}</div><ShieldCheck/><div><strong>{a}</strong><span>Observed in SentraPixel telemetry</span></div><b>CHECK</b></article>)}</div></section></>
+}
+
+function PlaybookWorkspace(){
+ const books=[["Account Takeover","Validate identity → revoke sessions → review privilege changes → temporary containment → analyst approval"],["Data Exfiltration","Validate transfer → identify destination → preserve logs → isolate affected endpoint → approval"],["Malware / C2","Validate process → inspect network indicators → isolate endpoint → preserve evidence → hunt related hosts"],["Uncorrelated High Risk","Validate source alert → collect supporting telemetry → monitor entity → avoid automatic blocking"]];
+ return <section className="wm-panel"><div className="wm-playbooks">{books.map(([name,steps],i)=><article key={name}><span>PB-{String(i+1).padStart(2,"0")}</span><div><strong>{name}</strong><p>{steps}</p></div><button>Analyst guided</button></article>)}</div></section>
+}
+
+function RuleBuilder(){
+ const[name,setName]=useState("Suspicious identity + privilege escalation"),[windowMins,setWindowMins]=useState(15),[severity,setSeverity]=useState("high");
+ return <section className="wm-panel rule-builder"><div className="wm-note"><SlidersHorizontal/><div><strong>Draft mode</strong><span>This builder previews rule logic only; production detection logic is not modified.</span></div></div><div className="rule-fields"><label><span>Rule name</span><input value={name} onChange={e=>setName(e.target.value)}/></label><label><span>Correlation window</span><input type="number" min="1" max="60" value={windowMins} onChange={e=>setWindowMins(e.target.value)}/></label><label><span>Severity</span><select value={severity} onChange={e=>setSeverity(e.target.value)}><option>medium</option><option>high</option><option>critical</option></select></label></div><div className="rule-preview"><span>PREVIEW</span><strong>{name}</strong><code>WHEN shared_entity(user OR device OR ip) WITHIN {windowMins}m AND attack_sequence = true THEN severity = {severity}</code></div></section>
+}
+
+function AutomationWorkspace(){
+ const[items,setItems]=useState({refresh:true,notify:true,contain:false,report:true});
+ const rows=[["refresh","Auto-refresh telemetry","Refresh analyst workspaces when new evidence is available."],["notify","Priority notifications","Surface critical/high review items."],["contain","Automatic containment","Kept off; consequential response requires analyst approval."],["report","Report readiness","Keep evidence-backed incident reports ready for generation."]];
+ return <section className="wm-panel settings-list">{rows.map(([k,n,d])=><label key={k}><div><strong>{n}</strong><span>{d}</span></div><input type="checkbox" checked={items[k]} disabled={k==="contain"} onChange={e=>setItems(v=>({...v,[k]:e.target.checked}))}/></label>)}</section>
+}
+
+function NotificationWorkspace({incidents,openIncident}){
+ const rows=incidents.filter(i=>["critical","high"].includes(i.severity)||["open","awaiting_review"].includes(i.status)).slice(0,20);
+ return <section className="wm-panel"><div className="wm-notifications">{rows.length?rows.map(i=><button key={i.incident_id} onClick={()=>openIncident(i.incident_id)}><Bell/><div><strong>{i.title}</strong><span>{i.incident_id} · {i.severity} · {i.status||"awaiting_review"}</span></div><Severity value={i.severity}/></button>):<Empty icon={Bell} title="No priority notifications"/>}</div></section>
+}
+
+function SLAWorkspace({incidents}){
+ const pending=incidents.filter(i=>["open","awaiting_review",null,undefined].includes(i.status));
+ const critical=pending.filter(i=>i.severity==="critical").length,high=pending.filter(i=>i.severity==="high").length;
+ return <><div className="wm-metrics"><Metric label="Pending cases" value={pending.length} sub="Review queue"/><Metric label="Critical pending" value={critical} sub="Target: immediate" tone="red"/><Metric label="High pending" value={high} sub="Target: priority" tone="amber"/><Metric label="SLA pressure" value={critical?"HIGH":high?"MEDIUM":"LOW"} sub="Derived from queue severity" tone={critical?"red":high?"amber":"green"}/></div><FilteredIncidents incidents={pending} onPick={()=>{}}/></>
 }
 
 function ModuleBody({id,incidents,summary,navigate,openIncident}){
