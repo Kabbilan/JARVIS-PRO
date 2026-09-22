@@ -224,7 +224,7 @@ export default function SocShell({children}){
     </aside>
 
     <header className="global-topbar">
-      <button className="menu-toggle desktop-menu" onClick={()=>setCollapsed(v=>!v)}><Menu/></button><button className="menu-toggle mobile-menu" onClick={()=>setMobileOpen(v=>!v)}><Menu/></button>
+      <button className="menu-toggle desktop-menu" onClick={()=>setCollapsed(v=>!v)}><Menu/></button><button className="menu-toggle mobile-menu" onClick={()=>{setCollapsed(false);setMobileOpen(v=>!v)}}><Menu/></button>
       <form className="global-search" onSubmit={submitSearch}><Search/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events, IPs, domains, users, incidents…"/><kbd>Ctrl + K</kbd></form>
       <div className="topbar-actions"><button className="bell"><Bell/><b>3</b></button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
     </header>
