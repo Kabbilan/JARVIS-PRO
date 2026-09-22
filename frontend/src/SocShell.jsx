@@ -20,7 +20,9 @@ const copy={posture:["Security Posture","Unified visibility into current exposur
 function triggerNative(label){[...document.querySelectorAll(".app-shell > aside nav button")].find(b=>b.textContent.includes(label))?.click()}
 
 function Overview({select}){
- const [data,setData]=useState({incidents:[],summary:{}});\n const [twinFocus,setTwinFocus]=useState("core");\n const twinData={identity:["IDENTITY","Observed user activity and authentication context."],device:["ENDPOINT","Endpoint telemetry linked to the active investigation."],core:["SOC CORE","Correlation engine linking entities, time windows and attack sequence evidence."],cloud:["CLOUD","Cloud-side anomaly requiring supporting evidence."],external:["EXTERNAL","Suspicious external destination observed in the simulated topology."],server:["SERVER","Protected internal resource monitored by SentraPixel."]};
+ const [data,setData]=useState({incidents:[],summary:{}});
+ const [twinFocus,setTwinFocus]=useState("core");
+ const twinData={identity:["IDENTITY","Observed user activity and authentication context."],device:["ENDPOINT","Endpoint telemetry linked to the active investigation."],core:["SOC CORE","Correlation engine linking entities, time windows and attack sequence evidence."],cloud:["CLOUD","Cloud-side anomaly requiring supporting evidence."],external:["EXTERNAL","Suspicious external destination observed in the simulated topology."],server:["SERVER","Protected internal resource monitored by SentraPixel."]};
  useEffect(()=>{fetch(`${API}/api/incidents`).then(r=>r.ok?r.json():Promise.reject()).then(setData).catch(()=>{})},[]);
  const incidents=data.incidents||[],s=data.summary||{};
  const critical=incidents.filter(x=>x.severity==="critical").length,high=incidents.filter(x=>x.severity==="high").length,pending=incidents.filter(x=>x.status==="awaiting_review").length;
