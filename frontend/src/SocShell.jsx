@@ -1,66 +1,234 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, BarChart3, BrainCircuit, ChevronDown, ChevronRight, Cloud, Database, FileSearch, Fingerprint, Globe2, History, Laptop, Link2, ListChecks, LockKeyhole, Network, Radar, Search, Server, Settings, ShieldCheck, SlidersHorizontal, Upload, User, Waypoints, Zap } from "lucide-react";
+import {
+  Activity, AlertTriangle, BarChart3, Bell, BrainCircuit, CheckCircle2, ChevronDown,
+  ChevronRight, CircleDot, Database, FileSearch, Fingerprint, Globe2, History,
+  Link2, ListChecks, LockKeyhole, Menu, Network, Radar, Search, Settings,
+  ShieldCheck, SlidersHorizontal, Sun, Upload, UserRound, Waypoints, Zap
+} from "lucide-react";
 import "./soc-shell.css";
 import SocModule from "./SocModules";
 
 const API=import.meta.env.VITE_API_URL||"http://localhost:8000";
+
 const groups=[
- {label:"COMMAND",items:[["command","SOC Overview",Radar],["live","Live Monitoring",Activity],["posture","Security Posture",ShieldCheck]]},
- {label:"DETECTION",items:[["alerts","Alert Center",AlertTriangle],["upload","Upload & Analyze",Upload],["detection","Threat Detection",Radar],["correlation","Correlation Engine",Link2],["anomaly","Anomaly Detection",Activity]]},
- {label:"INVESTIGATION",items:[["analysis","AI Investigation",BrainCircuit],["incidents","Incident Workbench",FileSearch],["evidence","Evidence Explorer",Fingerprint],["timeline","Attack Timeline",Waypoints],["mitre","MITRE ATT&CK",Network]]},
- {label:"INTELLIGENCE",items:[["intel","Threat Intelligence",Globe2],["ioc","IOC Lookup",Search],["ip","IP Reputation",Network],["domain","Domain / URL Analysis",Globe2],["hunt","Threat Hunting",Radar]]},
- {label:"RESPONSE",items:[["response","Response Center",LockKeyhole],["actions","Recommended Actions",ListChecks],["containment","Containment Queue",ShieldCheck],["approval","Approval Center",LockKeyhole],["false-positive","False Positive Review",ShieldCheck]]},
- {label:"ANALYTICS",items:[["risk","Risk Analytics",BarChart3],["trends","Incident Trends",BarChart3],["detection-analytics","Detection Analytics",Activity],["insights","AI Insights",BrainCircuit]]},
- {label:"REPORTING",items:[["reports","Incident Reports",FileSearch],["executive","Executive Reports",BarChart3],["report-history","Report History",History]]},
- {label:"SYSTEM",items:[["sources","Data Sources",Database],["integrations","Integrations",Link2],["rules","Detection Rules",SlidersHorizontal],["audit","Audit Logs",History],["settings","Settings",Settings]]}
+  {label:"",items:[["command","SOC Overview",Radar]]},
+  {label:"MONITORING",items:[["live","Live Events",Activity],["alerts","Alert Center",AlertTriangle],["detection","Threat Detection",ShieldCheck],["anomaly","Anomaly Detection",Zap]]},
+  {label:"INVESTIGATION",items:[["analysis","Investigation",BrainCircuit],["evidence","Evidence Explorer",Fingerprint],["timeline","Attack Timeline",Waypoints],["mitre","MITRE ATT&CK",Network],["hunt","Threat Hunting",Search]]},
+  {label:"INTELLIGENCE",items:[["intel","Threat Intelligence",Globe2],["ioc","IOC Lookup",Search],["domain","IP / Domain Analysis",Globe2],["posture","Vulnerability Intel",ShieldCheck]]},
+  {label:"RESPONSE",items:[["response","Response Center",Waypoints],["containment","Containment Actions",LockKeyhole],["approval","Approval Center",CheckCircle2],["false-positive","False Positive Review",ListChecks]]},
+  {label:"ANALYTICS",items:[["risk","Risk Analytics",BarChart3],["reports","Incident Reports",FileSearch],["executive","Executive Reports",BarChart3]]},
+  {label:"MANAGEMENT",items:[["sources","Data Sources",Database],["integrations","Integrations",Link2],["rules","Detection Rules",SlidersHorizontal],["audit","Audit Logs",History],["settings","Settings",Settings]]}
 ];
-const native={live:"Live Events",incidents:"Incidents",analysis:"Analysis",upload:"Command Center"};
-const copy={posture:["Security Posture","Unified visibility into current exposure, analyst review readiness, and defensive coverage."],alerts:["Alert Center","Triage security alerts by severity, source, confidence, and investigation state."],detection:["Threat Detection","Review detections produced by identity, endpoint, network, and correlation signals."],anomaly:["Anomaly Detection","Surface behavior that deviates from expected identity, device, and network activity."],evidence:["Evidence Explorer","Inspect the entities and telemetry that support each incident conclusion."],timeline:["Attack Timeline","Reconstruct an incident as an ordered, evidence-linked attack sequence."],mitre:["MITRE ATT&CK","Map observed behavior to ATT&CK tactics and techniques."],intel:["Threat Intelligence","Enrich suspicious indicators with external and internal context."],ioc:["IOC Lookup","Investigate IP addresses, domains, URLs, hashes, users, and devices."],ip:["IP Reputation","Review reputation and contextual evidence for suspicious network addresses."],domain:["Domain / URL Analysis","Inspect domains and URLs for suspicious indicators."],hunt:["Threat Hunting","Search across telemetry for related identities, devices, indicators, and attack patterns."],response:["Response Center","Coordinate reversible containment and analyst-approved response actions."],actions:["Recommended Actions","Review evidence-grounded response recommendations before execution."],containment:["Containment Queue","Track temporary containment requests, expiry, rollback, and approval state."],approval:["Approval Center","Keep consequential response actions behind explicit human authorization."],"false-positive":["False Positive Review","Review dismissed detections and preserve analyst reasoning."],"detection-analytics":["Detection Analytics","Understand alert volume, correlation quality, severity distribution, and noise reduction."],insights:["AI Insights","Review AI-generated investigation narratives separately from deterministic evidence."],executive:["Executive Reports","Summarize incident volume, risk, response status, and SOC outcomes."],sources:["Data Sources","Manage SIEM, identity, endpoint, firewall, and uploaded JSON telemetry sources."],integrations:["Integrations","Connect intelligence, notification, storage, and security services."],rules:["Detection Rules","Review correlation and detection logic used by the deterministic analysis layer."],audit:["Audit Logs","Track investigations, analyst decisions, response actions, and report activity."],settings:["Settings","Configure workspace behavior, safety controls, integrations, and analyst preferences."]};
 
-function triggerNative(label){[...document.querySelectorAll(".app-shell > aside nav button")].find(b=>b.textContent.includes(label))?.click()}
+const native={live:"Live Events",analysis:"Analysis",upload:"Command Center",incidents:"Incidents"};
 
-function Overview({select}){
- const [data,setData]=useState({incidents:[],summary:{}});
- const [twinFocus,setTwinFocus]=useState("core");
- const twinData={identity:["IDENTITY","Observed user activity and authentication context."],device:["ENDPOINT","Endpoint telemetry linked to the active investigation."],core:["SOC CORE","Correlation engine linking entities, time windows and attack sequence evidence."],cloud:["CLOUD","Cloud-side anomaly requiring supporting evidence."],external:["EXTERNAL","Suspicious external destination observed in the simulated topology."],server:["SERVER","Protected internal resource monitored by SentraPixel."]};
- useEffect(()=>{fetch(`${API}/api/incidents`).then(r=>r.ok?r.json():Promise.reject()).then(setData).catch(()=>{})},[]);
- const incidents=data.incidents||[],s=data.summary||{};
- const critical=incidents.filter(x=>x.severity==="critical").length,high=incidents.filter(x=>x.severity==="high").length,pending=incidents.filter(x=>x.status==="awaiting_review").length;
- const recent=incidents.slice(0,5);
- const bars=[42,58,38,71,55,82,64,91,73,66,88,61];
- return <div className="enterprise-overview">
-  <div className="overview-top"><div><p>SECURITY OPERATIONS / COMMAND CENTER</p><h1>SOC Overview</h1><span>Unified detection, investigation and response visibility</span></div><div className="overview-actions"><button onClick={()=>select("hunt")}><Search/> Search telemetry</button><button className="hot" onClick={()=>select("upload")}><Upload/> Analyze alerts</button></div></div>
-  <div className="overview-kpis">
-   <article className="danger"><span><AlertTriangle/> CRITICAL INCIDENTS</span><strong>{critical}</strong><small>Requires immediate review</small></article>
-   <article className="amber"><span><Zap/> HIGH RISK</span><strong>{high}</strong><small>Priority investigation queue</small></article>
-   <article className="blue"><span><BrainCircuit/> INVESTIGATING</span><strong>{pending}</strong><small>Awaiting analyst decision</small></article>
-   <article className="green"><span><ShieldCheck/> NOISE REDUCED</span><strong>{s.noise_reduction_percent||0}%</strong><small>Correlation efficiency</small></article>
-   <article className="violet"><span><Database/> RECORDED CASES</span><strong>{s.total??incidents.length}</strong><small>Incident knowledge base</small></article>
-  </div>
-  <div className="overview-grid">
-   <section className="overview-card digital-twin"><header><div><p>LIVE ENVIRONMENT</p><h2>SOC Digital Twin</h2></div><span className="live-dot">SIMULATION ACTIVE</span></header><div className="twin-grid"/><div className="twin-canvas"><i className="twin-link l1"/><i className="twin-link l2"/><i className="twin-link l3 threat"/><i className="twin-link l4 threat"/><i className="twin-link l5"/><button onClick={()=>setTwinFocus("identity")} className={"twin-node n-user "+(twinFocus==="identity"?"selected":"")}><User/><b>IDENTITY</b><small>analyst</small></button><button onClick={()=>setTwinFocus("device")} className={"twin-node n-device "+(twinFocus==="device"?"selected":"")}><Laptop/><b>ENDPOINT</b><small>LAP-042</small></button><button onClick={()=>setTwinFocus("core")} className={"twin-node n-core "+(twinFocus==="core"?"selected":"")}><Network/><b>SOC CORE</b><small>correlating</small></button><button onClick={()=>setTwinFocus("cloud")} className={"twin-node n-cloud threat "+(twinFocus==="cloud"?"selected":"")}><Cloud/><b>CLOUD</b><small>anomaly</small></button><button onClick={()=>setTwinFocus("external")} className={"twin-node n-external threat "+(twinFocus==="external"?"selected":"")}><Globe2/><b>EXTERNAL</b><small>suspicious</small></button><button onClick={()=>setTwinFocus("server")} className={"twin-node n-server "+(twinFocus==="server"?"selected":"")}><Server/><b>SERVER</b><small>protected</small></button></div><div className="twin-legend"><span><i/>Observed path</span><span><i className="bad"/>Suspicious path</span><span><i className="safe"/>Protected asset</span></div><div className="twin-inspector"><div><span>SELECTED ENTITY</span><strong>{twinData[twinFocus][0]}</strong><small>{twinData[twinFocus][1]}</small></div><button onClick={()=>select("evidence")}>Inspect evidence <ChevronRight/></button></div></section>
-   <section className="overview-card threat-activity"><header><div><p>THREAT ACTIVITY</p><h2>Detection volume</h2></div><span className="live-dot">LIVE</span></header><div className="chart-wrap"><div className="chart-y"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div><div className="bar-chart">{bars.map((v,i)=><i key={i} style={{height:`${v}%`}}><b>{v}</b></i>)}</div></div><footer><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>NOW</span></footer></section>
-   <section className="overview-card posture-card"><header><div><p>SECURITY POSTURE</p><h2>Operational readiness</h2></div><ShieldCheck/></header><div className="posture-ring"><div><strong>{Math.max(72,100-pending*5)}%</strong><span>POSTURE</span></div></div><div className="posture-rows"><p><span>Correlation engine</span><b>Healthy</b></p><p><span>Human approval gate</span><b>Enabled</b></p><p><span>AI investigation</span><b>Available</b></p></div></section>
-   <section className="overview-card live-feed"><header><div><p>INCIDENT QUEUE</p><h2>Recent investigations</h2></div><button onClick={()=>select("incidents")}>View all <ChevronRight/></button></header>{recent.length?recent.map((x,i)=><button className="feed-row" key={x.incident_id} onClick={()=>select("incidents")}><span className={`feed-sev ${x.severity}`}/><div><strong>{x.title}</strong><small>{x.incident_id} · {x.metrics?.raw_alerts||0} alerts</small></div><em>{x.score}</em><span className={`severity-tag ${x.severity}`}>{x.severity}</span><ChevronRight/></button>):<div className="feed-empty"><Radar/><strong>No recorded incidents</strong><span>Analyze telemetry to populate the investigation queue.</span></div>}</section>
-   <section className="overview-card mitre-overview"><header><div><p>MITRE ATT&CK</p><h2>Observed techniques</h2></div><button onClick={()=>select("mitre")}>Explore</button></header><div className="technique"><span>T1078</span><div><strong>Valid Accounts</strong><small>Initial Access · Persistence</small></div><b>HIGH</b></div><div className="technique"><span>T1041</span><div><strong>Exfiltration Over C2</strong><small>Exfiltration</small></div><b>HIGH</b></div><div className="technique"><span>T1490</span><div><strong>Inhibit System Recovery</strong><small>Impact</small></div><b>MED</b></div></section>
-   <section className="overview-card copilot"><header><div><p>AI INVESTIGATION COPILOT</p><h2>Analyst assist</h2></div><span className="online"><i/> ONLINE</span></header><div className="copilot-hero"><BrainCircuit/><div><strong>Evidence-grounded workflow</strong><span>Correlate first. Use AI to explain the evidence. Keep response behind human approval.</span></div></div><div className="copilot-actions"><button onClick={()=>select("analysis")}><Search/> Investigate incident</button><button onClick={()=>select("hunt")}><Radar/> Hunt related activity</button><button onClick={()=>select("approval")}><LockKeyhole/> Review approvals</button></div></section>
-  </div>
- </div>
+function triggerNative(label){
+  [...document.querySelectorAll(".app-shell > aside nav button")].find(b=>b.textContent.includes(label))?.click();
+}
+function severityRank(value){return {critical:4,high:3,medium:2,low:1}[value]||0}
+function sevClass(value="low"){return String(value).toLowerCase().replaceAll(" ","-")}
+
+function MiniSpark({points="2,16 7,11 12,14 17,7 22,9 27,4 32,8 37,6 42,11 47,3"}){
+  return <svg className="mini-spark" viewBox="0 0 50 20" aria-hidden="true"><polyline points={points}/></svg>;
+}
+
+function WorldThreatMap(){
+  const nodes=[
+    [214,120,"low"],[305,142,"low"],[397,102,"critical"],[430,88,"high"],
+    [542,128,"critical"],[615,151,"high"],[354,160,"low"],[502,188,"high"],[692,216,"low"]
+  ];
+  return <div className="map-stage">
+    <svg viewBox="0 0 840 300" className="world-map" role="img" aria-label="Global threat activity visualization">
+      <g className="world-land">
+        <path d="M77 82l34-30 54-20 63 12 37 31-22 26-41 4-13 36-36 20-43-15-17-31z"/>
+        <path d="M210 157l25 9 27 42-3 49-21 33-18-34 4-39-17-32z"/>
+        <path d="M347 64l35-20 47 4 20 21-20 15-22-8-17 12-26-9z"/>
+        <path d="M380 96l49 9 37 31-6 39-26 33-31-17-10-45-27-25z"/>
+        <path d="M442 62l63-24 87 8 84 28 68 28-11 34-59 3-40-23-43 7-23 31-34-18-31 4-15-31-53-14z"/>
+        <path d="M640 205l44-18 46 15 12 30-29 23-43-8-19-21z"/>
+      </g>
+      <g className="attack-lines">
+        <path className="line critical" d="M214 120 Q315 40 397 102"/>
+        <path className="line blue" d="M305 142 Q402 115 542 128"/>
+        <path className="line critical" d="M430 88 Q505 55 542 128"/>
+        <path className="line blue" d="M354 160 Q430 125 615 151"/>
+        <path className="line critical" d="M542 128 Q618 112 692 216"/>
+      </g>
+      {nodes.map(([x,y,t],i)=><g key={i} className={"map-node "+t} transform={"translate("+x+" "+y+")"}><circle r="10" className="pulse-ring"/><circle r="4"/><circle r="1.5" className="core"/></g>)}
+    </svg>
+    <div className="map-side map-origins"><strong>Top Attack Origins</strong><p><span>●</span> External IPs <b>28</b></p><p><span>●</span> Identity <b>19</b></p><p><span>●</span> Endpoint <b>11</b></p><p><span>●</span> Firewall <b>7</b></p><p><span>●</span> Email <b>6</b></p></div>
+    <div className="map-side map-targets"><strong>Top Targeted Assets</strong><p><Database/> Web Servers <b>26</b></p><p><UserRound/> User Endpoints <b>18</b></p><p><Database/> Database <b>12</b></p><p><Globe2/> Cloud Services <b>9</b></p><p><ShieldCheck/> Email Gateway <b>7</b></p></div>
+    <div className="map-badge"><ShieldCheck/><div><strong>Live Attack Map</strong><span>Evidence visualization</span></div></div>
+  </div>;
+}
+
+function Overview({select,openIncident}){
+  const[data,setData]=useState({incidents:[],summary:{}});
+  const[details,setDetails]=useState([]);
+  const[now,setNow]=useState(new Date());
+
+  useEffect(()=>{
+    let mounted=true;
+    fetch(`${API}/api/incidents`).then(r=>r.ok?r.json():Promise.reject()).then(async body=>{
+      if(!mounted)return;
+      setData(body);
+      const rows=(body.incidents||[]).slice(0,8);
+      const full=await Promise.all(rows.map(async row=>{
+        try{const r=await fetch(`${API}/api/incidents/${row.incident_id}`);return r.ok?await r.json():row}catch{return row}
+      }));
+      if(mounted)setDetails(full);
+    }).catch(()=>{});
+    const timer=setInterval(()=>setNow(new Date()),1000);
+    return()=>{mounted=false;clearInterval(timer)};
+  },[]);
+
+  const incidents=data.incidents||[],summary=data.summary||{};
+  const sorted=[...incidents].sort((a,b)=>severityRank(b.severity)-severityRank(a.severity)||(b.score||0)-(a.score||0));
+  const critical=incidents.filter(x=>x.severity==="critical").length;
+  const high=incidents.filter(x=>x.severity==="high").length;
+  const pending=incidents.filter(x=>["open","awaiting_review",null,undefined].includes(x.status)).length;
+  const contained=incidents.filter(x=>x.status==="approved").length;
+  const avgConfidence=details.length?Math.round(details.reduce((n,x)=>n+(Number(x.confidence)||0),0)/details.length):0;
+
+  const events=details.flatMap(i=>(i.events||[]).map(e=>({...e,incident_id:i.incident_id,severity:i.severity,score:i.score}))).sort((a,b)=>(b.time||"").localeCompare(a.time||"")).slice(0,9);
+  const fallback=[
+    {time:"10:12:31",label:"Data Exfiltration",id:"EVT-2081",severity:"critical",source:"Firewall"},
+    {time:"10:11:07",label:"Privilege Escalation",id:"EVT-2080",severity:"high",source:"Identity"},
+    {time:"10:09:44",label:"Suspicious Login",id:"EVT-2079",severity:"medium",source:"Endpoint"},
+    {time:"10:08:17",label:"Failed Login",id:"EVT-2078",severity:"low",source:"SIEM"},
+    {time:"10:06:55",label:"Malware Detected",id:"EVT-2077",severity:"high",source:"Endpoint"},
+    {time:"10:05:32",label:"Unusual API Access",id:"EVT-2076",severity:"medium",source:"Cloud"}
+  ];
+  const eventRows=events.length?events.map((e,i)=>({time:e.time||"--:--",label:e.label||e.type||"Security Event",id:e.id||"EVT-"+(2081-i),severity:e.base_severity>=85?"critical":e.base_severity>=65?"high":e.base_severity>=35?"medium":"low",source:e.source||"Unknown"})):fallback;
+
+  const techniques={};
+  details.forEach(i=>(i.mitre_techniques||[]).forEach(t=>{techniques[t.id]=techniques[t.id]||{...t,count:0};techniques[t.id].count++}));
+  const techniqueRows=Object.values(techniques).sort((a,b)=>b.count-a.count).slice(0,5);
+  const techniqueFallback=[
+    {id:"T1078",name:"Valid Accounts",count:22},{id:"T1041",name:"Exfiltration Over C2",count:18},
+    {id:"T1490",name:"Inhibit System Recovery",count:12},{id:"T1059",name:"Command & Scripting",count:9},{id:"T1021",name:"Remote Services",count:7}
+  ];
+  const tech=techniqueRows.length?techniqueRows:techniqueFallback;
+  const techMax=Math.max(...tech.map(x=>x.count),1);
+
+  const trend=[16,18,14,19,22,28,34];
+  const securityScore=Math.max(0,Math.min(100,78-critical*4-high*2+contained*3));
+  const top=sorted[0];
+
+  return <div className="exact-dashboard">
+    <div className="dashboard-heading">
+      <div><p>SOC COMMAND CENTER</p><h1>Security Operations Overview</h1><span>Detect. Investigate. Respond. Stay Ahead.</span></div>
+      <div className="status-cluster">
+        <div className="status-stats"><div><UserRound/><strong>3</strong><span>Active Analysts</span></div><div><CircleDot/><strong>92%</strong><span>System Health</span></div><div><Zap/><strong>0.4s</strong><span>Avg. Response</span></div></div>
+        <div className="clock-card"><span>{now.toLocaleDateString("en-US",{weekday:"short",day:"2-digit",month:"short",year:"numeric"})}</span><strong>{now.toLocaleTimeString("en-GB")}</strong><b><i/> LIVE</b></div>
+      </div>
+    </div>
+
+    <div className="exact-kpis">
+      <button className="kpi red" onClick={()=>select("alerts")}><div className="kpi-icon"><ShieldCheck/></div><div><strong>{critical}</strong><span>Critical</span><small>↑ Priority threats</small></div><MiniSpark/></button>
+      <button className="kpi amber" onClick={()=>select("detection")}><div className="kpi-icon"><AlertTriangle/></div><div><strong>{high}</strong><span>High Risk</span><small>↑ Needs investigation</small></div><MiniSpark points="2,16 7,14 12,9 17,11 22,4 27,7 32,2 37,5 42,12 47,8"/></button>
+      <button className="kpi blue" onClick={()=>select("analysis")}><div className="kpi-icon"><Search/></div><div><strong>{pending}</strong><span>Investigating</span><small>↓ Analyst queue</small></div><MiniSpark points="2,17 8,13 13,14 18,10 24,11 29,6 34,9 39,5 44,7 48,2"/></button>
+      <button className="kpi green" onClick={()=>select("response")}><div className="kpi-icon"><CheckCircle2/></div><div><strong>{contained}</strong><span>Contained</span><small>↑ Reviewed actions</small></div><MiniSpark points="2,15 7,12 12,14 17,10 22,12 27,7 32,8 37,4 42,6 47,2"/></button>
+      <button className="kpi violet" onClick={()=>select("insights")}><div className="kpi-icon"><BrainCircuit/></div><div><strong>{avgConfidence||92}%</strong><span>AI Confidence</span><small>↑ Evidence confidence</small></div><MiniSpark points="2,16 7,13 12,15 17,9 22,10 27,6 32,8 37,5 42,9 47,4"/></button>
+    </div>
+
+    <div className="dashboard-main-grid">
+      <section className="exact-card global-threat">
+        <header><div><Globe2/><strong>Global Threat Activity</strong></div><div className="map-legend"><span className="critical">● Critical</span><span className="high">● High</span><span className="medium">● Medium</span><span className="low">● Low</span></div><button>Last 24 hours <ChevronDown/></button></header>
+        <WorldThreatMap/>
+      </section>
+
+      <section className="exact-card live-events-card">
+        <header><div><Activity/><strong>Live Security Events</strong></div><button onClick={()=>select("live")}>View All <ChevronRight/></button></header>
+        <div className="exact-event-table">
+          <div className="event-head"><span>Time</span><span>Event</span><span>Severity</span><span>Source</span></div>
+          {eventRows.map((e,i)=><button key={e.id+i} onClick={()=>select("live")} className="event-line"><i className={sevClass(e.severity)}/><span>{e.time}</span><div><strong>{e.label}</strong><small>{e.id}</small></div><b className={"severity-pill "+sevClass(e.severity)}>{e.severity}</b><em>{e.source}</em></button>)}
+        </div>
+      </section>
+    </div>
+
+    <div className="dashboard-bottom-grid">
+      <section className="exact-card trend-card">
+        <header><div><BarChart3/><strong>Incident Trends</strong></div><button>Last 7 days <ChevronDown/></button></header>
+        <div className="trend-legend"><span className="critical">● Critical</span><span className="high">● High</span><span className="medium">● Medium</span><span className="low">● Low</span></div>
+        <div className="trend-bars">{trend.map((v,i)=><div key={i}><div className="stack"><i className="low" style={{height:(v*.28)+"%"}}/><i className="medium" style={{height:(v*.24)+"%"}}/><i className="high" style={{height:(v*.25)+"%"}}/><i className="critical" style={{height:(v*.23)+"%"}}/></div><span>Sep {16+i}</span></div>)}</div>
+      </section>
+
+      <section className="exact-card posture-card-exact">
+        <header><div><ShieldCheck/><strong>Security Posture</strong></div><ChevronRight/></header>
+        <div className="score-wrap"><div className="score-ring" style={{"--score":securityScore}}><div><strong>{securityScore}</strong><span>Security Score</span><b>+12%</b></div></div><div className="posture-list"><p><span><i className="cyan"/>Endpoint Security</span><b>82</b></p><p><span><i className="green"/>Identity Security</span><b>76</b></p><p><span><i className="violet"/>Network Security</span><b>71</b></p><p><span><i className="yellow"/>Data Protection</span><b>85</b></p><p><span><i className="blue"/>Cloud Security</span><b>79</b></p></div></div>
+      </section>
+
+      <section className="exact-card mitre-card-exact">
+        <header><div><Network/><strong>MITRE ATT&CK</strong></div><button onClick={()=>select("mitre")}>View All <ChevronRight/></button></header>
+        <span className="card-sub">Top Techniques (Last 24h)</span>
+        <div className="mitre-bars">{tech.map((t,i)=><div key={t.id}><p><span>{t.id} · {t.name}</span><b>{t.count}</b></p><i><b style={{width:(t.count/techMax*100)+"%"}}/></i></div>)}</div>
+      </section>
+
+      <section className="exact-card copilot-card-exact">
+        <header><div><BrainCircuit/><strong>AI Investigation Copilot</strong></div><ChevronRight/></header>
+        <div className="copilot-alert"><BrainCircuit/><div><strong>{top?top.title:"3 new high-risk alerts detected."}</strong><span>{top?("Recommend reviewing "+top.incident_id+" before response."): "Recommend reviewing data exfiltration evidence."}</span></div></div>
+        <div className="copilot-buttons"><button onClick={()=>select("analysis")}>Explain this alert</button><button onClick={()=>select("incidents")}>Show related incidents</button><button onClick={()=>select("actions")}>Recommended actions</button></div>
+        <div className="copilot-input"><input placeholder="Ask the AI copilot…" onKeyDown={e=>{if(e.key==="Enter")select("analysis")}}/><button onClick={()=>select("analysis")}><ChevronRight/></button></div>
+      </section>
+    </div>
+  </div>;
 }
 
 export default function SocShell({children}){
- const[active,setActive]=useState("command"),[collapsed,setCollapsed]=useState(false),[open,setOpen]=useState(()=>Object.fromEntries(groups.map(g=>[g.label,true])));
- const module=useMemo(()=>copy[active],[active]);
- useEffect(()=>{
-   const sync=(event)=>{
-     const map={live:"live",incidents:"incidents",analysis:"analysis",batch:"analysis"};
-     if(map[event.detail]) setActive(map[event.detail]);
-     else if(event.detail==="command") setActive(current=>current==="command"?"command":"upload");
-   };
-   window.addEventListener("sentrapixel:view",sync);
-   return()=>window.removeEventListener("sentrapixel:view",sync);
- },[]);
- function select(id){setActive(id);if(native[id])triggerNative(native[id]);window.scrollTo({top:0,behavior:"smooth"})}
- function openIncident(incidentId){setActive("analysis");window.dispatchEvent(new CustomEvent("sentrapixel:open-incident",{detail:incidentId}));window.scrollTo({top:0,behavior:"smooth"})}
- return <div className={`soc-shell ${collapsed?"soc-collapsed":""}`}><aside className="soc-sidebar"><div className="soc-brand"><div className="soc-logo"><ShieldCheck/></div>{!collapsed&&<div><strong>SentraPixel</strong><span>Autonomous SOC</span></div>}<button onClick={()=>setCollapsed(v=>!v)}><ChevronRight/></button></div><div className="soc-nav">{groups.map(g=><section key={g.label}>{!collapsed&&<button className="soc-group" onClick={()=>setOpen(v=>({...v,[g.label]:!v[g.label]}))}><span>{g.label}</span>{open[g.label]?<ChevronDown/>:<ChevronRight/>}</button>}{(collapsed||open[g.label])&&<div>{g.items.map(([id,label,Icon])=><button title={label} key={id} className={active===id?"active":""} onClick={()=>select(id)}><Icon/><span>{label}</span></button>)}</div>}</section>)}</div><div className="soc-engine"><span/><div><strong>ENGINE ONLINE</strong>{!collapsed&&<small>Evidence + human review</small>}</div></div></aside><div className="soc-content">{children}{active==="command"?<div className="soc-module-overlay overview-overlay"><Overview select={select}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}</div></div>
+  const[active,setActive]=useState("command");
+  const[collapsed,setCollapsed]=useState(false);
+  const[search,setSearch]=useState("");
+
+  useEffect(()=>{
+    const sync=(event)=>{
+      const map={live:"live",incidents:"incidents",analysis:"analysis",batch:"analysis"};
+      if(map[event.detail])setActive(map[event.detail]);
+      else if(event.detail==="command")setActive(current=>current==="command"?"command":"upload");
+    };
+    window.addEventListener("sentrapixel:view",sync);
+    return()=>window.removeEventListener("sentrapixel:view",sync);
+  },[]);
+
+  function select(id){
+    setActive(id);
+    if(native[id])triggerNative(native[id]);
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function openIncident(incidentId){
+    setActive("analysis");
+    window.dispatchEvent(new CustomEvent("sentrapixel:open-incident",{detail:incidentId}));
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function submitSearch(event){
+    event.preventDefault();
+    if(search.trim())select("hunt");
+  }
+
+  return <div className={"soc-shell exact-shell "+(collapsed?"soc-collapsed":"")}>
+    <aside className="soc-sidebar exact-sidebar">
+      <div className="soc-brand exact-brand">
+        <div className="brand-shield"><ShieldCheck/></div>
+        {!collapsed&&<div><strong>Sentra<span>Pixel</span></strong><small>Autonomous SOC Intelligence</small></div>}
+      </div>
+      <nav className="exact-nav">
+        {groups.map(group=><section key={group.label||"overview"}>
+          {!collapsed&&group.label&&<p>{group.label}</p>}
+          {group.items.map(([id,label,Icon])=><button key={id} title={label} className={active===id?"active":""} onClick={()=>select(id)}><Icon/><span>{label}</span>{id==="alerts"&&!collapsed&&<b>{Math.max(0,12)}</b>}</button>)}
+        </section>)}
+      </nav>
+      <button className="ai-online" onClick={()=>select("analysis")}><BrainCircuit/><div><span>AI Copilot</span><strong><i/> Online</strong></div></button>
+    </aside>
+
+    <header className="global-topbar">
+      <button className="menu-toggle" onClick={()=>setCollapsed(v=>!v)}><Menu/></button>
+      <form className="global-search" onSubmit={submitSearch}><Search/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events, IPs, domains, users, incidents…"/><kbd>Ctrl + K</kbd></form>
+      <div className="topbar-actions"><button className="bell"><Bell/><b>3</b></button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
+    </header>
+
+    <div className="soc-content exact-content">
+      {children}
+      {active==="command"?<div className="soc-module-overlay overview-overlay exact-overview-overlay"><Overview select={select} openIncident={openIncident}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}
+    </div>
+  </div>;
 }
