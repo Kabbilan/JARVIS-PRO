@@ -90,10 +90,24 @@ function DetailDriven({incidents,type}){
  </section></div>
 }
 
-function ModuleBody({id,incidents,summary,navigate}){
+function ReportWorkspace({incidents,openIncident}){
+ const[busy,setBusy]=useState("");
+ async function download(incident){
+  setBusy(incident.incident_id);
+  try{
+   const res=await fetch(`${API}/api/incidents/${incident.incident_id}/report`);if(!res.ok)throw new Error();
+   const blob=await res.blob(),url=URL.createObjectURL(blob),a=document.createElement("a");
+   a.href=url;a.download=`SentraPixel-${incident.incident_id}.pdf`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+  }catch{window.alert("Report generation failed. Check the SentraPixel backend connection.");}
+  finally{setBusy("")}
+ }
+ return <section className="wm-panel"><div className="wm-panel-title"><strong>Evidence-backed incident reports</strong><small>{incidents.length} report-ready cases</small></div>{incidents.length?incidents.map(i=><article className="wm-report-row" key={i.incident_id}><div><Severity value={i.severity}/><strong>{i.title}</strong><small>{i.incident_id} · score {i.score}</small></div><button onClick={()=>openIncident(i.incident_id)}><FileSearch/> Open</button><button onClick={()=>download(i)} disabled={busy===i.incident_id}><Database/> {busy===i.incident_id?"Generating…":"PDF"}</button></article>):<Empty icon={FileSearch} title="No reports available"/>}</section>
+}
+
+function ModuleBody({id,incidents,summary,navigate,openIncident}){
  const {events,indicators}=collect(incidents);
  const critical=incidents.filter(x=>x.severity==="critical").length, high=incidents.filter(x=>x.severity==="high").length, pending=incidents.filter(x=>["open","awaiting_review",null,undefined].includes(x.status)).length;
- if(["alerts","detection","anomaly"].includes(id)) return <FilteredIncidents incidents={id==="detection"?incidents.filter(x=>["critical","high"].includes(x.severity)):id==="anomaly"?incidents.filter(x=>x.classification==="uncorrelated_high_risk_signal"||x.standalone):incidents} onPick={()=>navigate("incidents")}/>;
+ if(["alerts","detection","anomaly"].includes(id)) return <FilteredIncidents incidents={id==="detection"?incidents.filter(x=>["critical","high"].includes(x.severity)):id==="anomaly"?incidents.filter(x=>x.classification==="uncorrelated_high_risk_signal"||x.standalone):incidents} onPick={x=>openIncident(x.incident_id)}/>;
  if(["evidence","timeline","mitre","correlation"].includes(id)) return <DetailDriven incidents={incidents} type={id}/>;
  if(["ioc","ip","domain","hunt","intel"].includes(id)) return <IntelSearch incidents={incidents} mode={id}/>;
  if(id==="posture") return <><div className="wm-metrics"><Metric label="Recorded incidents" value={summary.total||incidents.length} sub="Current knowledge base"/><Metric label="Critical" value={critical} sub="Immediate review" tone="red"/><Metric label="Awaiting review" value={pending} sub="Human decision queue" tone="amber"/><Metric label="Noise reduced" value={(summary.noise_reduction_percent||0)+"%"} sub="Correlation efficiency" tone="green"/></div><section className="wm-panel"><div className="posture-bars"><p><span>Correlation workflow</span><b>Active</b></p><p><span>Human approval gate</span><b>Enforced</b></p><p><span>Permanent auto-block</span><b className="warn">Disabled by design</b></p><p><span>Stored incident coverage</span><b>{incidents.length?"Available":"Waiting for data"}</b></p></div></section></>;
@@ -102,7 +116,7 @@ function ModuleBody({id,incidents,summary,navigate}){
    if(id==="approval")list=incidents.filter(x=>["open","awaiting_review",null,undefined].includes(x.status));
    if(id==="containment")list=incidents.filter(x=>["critical","high"].includes(x.severity));
    if(id==="false-positive")list=incidents.filter(x=>x.status==="false_positive");
-   return <><div className="wm-metrics"><Metric label="Awaiting analyst" value={pending} sub="Explicit review needed" tone="amber"/><Metric label="High/Critical" value={critical+high} sub="Priority response cases" tone="red"/><Metric label="Approved" value={summary.approved||incidents.filter(x=>x.status==="approved").length} sub="Reviewed cases" tone="green"/></div><FilteredIncidents incidents={list} onPick={()=>navigate("incidents")}/><div className="wm-note"><LockKeyhole/><div><strong>Safety boundary</strong><span>Temporary containment requires confidence and acknowledgement. Permanent blocking is not executed automatically by SentraPixel.</span></div></div></>;
+   return <><div className="wm-metrics"><Metric label="Awaiting analyst" value={pending} sub="Explicit review needed" tone="amber"/><Metric label="High/Critical" value={critical+high} sub="Priority response cases" tone="red"/><Metric label="Approved" value={summary.approved||incidents.filter(x=>x.status==="approved").length} sub="Reviewed cases" tone="green"/></div><FilteredIncidents incidents={list} onPick={x=>openIncident(x.incident_id)}/><div className="wm-note"><LockKeyhole/><div><strong>Safety boundary</strong><span>Temporary containment requires confidence and acknowledgement. Permanent blocking is not executed automatically by SentraPixel.</span></div></div></>;
  }
  if(id==="actions"){
    const actions=new Map(); incidents.forEach(i=>(i.recommended_actions||[]).forEach(a=>actions.set(a,(actions.get(a)||0)+1)));
@@ -111,13 +125,13 @@ function ModuleBody({id,incidents,summary,navigate}){
  if(["risk","trends","detection-analytics","executive"].includes(id)){
    const sev=["critical","high","medium","low"].map(k=>[k,incidents.filter(x=>x.severity===k).length]);
    const max=Math.max(1,...sev.map(x=>x[1]));
-   return <><div className="wm-metrics"><Metric label="Total incidents" value={incidents.length} sub="Recorded cases"/><Metric label="Total alerts" value={summary.total_alerts||events.length} sub="Analyzed telemetry"/><Metric label="Critical + High" value={critical+high} sub="Priority risk" tone="red"/><Metric label="Noise reduced" value={(summary.noise_reduction_percent||0)+"%"} sub="Correlation efficiency" tone="green"/></div><section className="wm-panel"><div className="wm-panel-title"><strong>Severity distribution</strong><small>Recorded incident population</small></div><div className="wm-bars">{sev.map(([k,n])=><div key={k}><span>{k}</span><i><b className={k} style={{width:(n/max*100)+"%"}}/></i><strong>{n}</strong></div>)}</div></section><FilteredIncidents incidents={incidents} onPick={()=>navigate("incidents")}/></>;
+   return <><div className="wm-metrics"><Metric label="Total incidents" value={incidents.length} sub="Recorded cases"/><Metric label="Total alerts" value={summary.total_alerts||events.length} sub="Analyzed telemetry"/><Metric label="Critical + High" value={critical+high} sub="Priority risk" tone="red"/><Metric label="Noise reduced" value={(summary.noise_reduction_percent||0)+"%"} sub="Correlation efficiency" tone="green"/></div><section className="wm-panel"><div className="wm-panel-title"><strong>Severity distribution</strong><small>Recorded incident population</small></div><div className="wm-bars">{sev.map(([k,n])=><div key={k}><span>{k}</span><i><b className={k} style={{width:(n/max*100)+"%"}}/></i><strong>{n}</strong></div>)}</div></section><FilteredIncidents incidents={incidents} onPick={x=>openIncident(x.incident_id)}/></>;
  }
  if(id==="insights"){
    const investigated=incidents.filter(x=>x.investigation);
    return <section className="wm-panel">{investigated.length?investigated.map(i=><article className="wm-insight" key={i.incident_id}><BrainCircuit/><div><strong>{i.title}</strong><span>{i.investigation?.provider||"AI/fallback provider"} · {i.incident_id}</span><p>{i.investigation?.narrative||"Investigation output stored for this incident."}</p></div></article>):<Empty icon={BrainCircuit} title="No stored AI investigations" text="Open an incident and run AI Investigation to populate this workspace."/>}</section>;
  }
- if(["reports","report-history"].includes(id)) return <><div className="wm-note"><FileSearch/><div><strong>Report workflow connected</strong><span>Select an incident below, then use its existing PDF report action in Incident Workbench.</span></div></div><FilteredIncidents incidents={incidents} onPick={()=>navigate("incidents")}/></>;
+ if(["reports","report-history"].includes(id)) return <ReportWorkspace incidents={incidents} openIncident={openIncident}/>;
  if(id==="sources"){
    const counts={};events.forEach(e=>{counts[e.source||"Unknown"]=(counts[e.source||"Unknown"]||0)+1});
    return <section className="wm-panel"><div className="wm-source-grid">{Object.entries(counts).length?Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([name,n])=><article key={name}><Database/><strong>{name}</strong><span>{n} observed events</span></article>):<Empty icon={Database} title="No telemetry sources recorded"/>}</div></section>;
@@ -134,7 +148,7 @@ function SettingsPanel(){
  return <section className="wm-panel settings-list"><label><div><strong>Compact analyst density</strong><span>Reduce spacing in data-heavy workspaces.</span></div><input type="checkbox" checked={compact} onChange={e=>setCompact(e.target.checked)}/></label><label><div><strong>Interface motion</strong><span>Allow subtle Digital Twin and status animations.</span></div><input type="checkbox" checked={motion} onChange={e=>setMotion(e.target.checked)}/></label><label><div><strong>Auto-refresh incident data</strong><span>Refresh module data periodically while this session is open.</span></div><input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/></label><div className="wm-note"><Settings/><div><strong>Session preference preview</strong><span>These controls are local UI preferences and do not change backend security policy.</span></div></div></section>;
 }
 
-export default function SocModule({id,navigate}){
+export default function SocModule({id,navigate,openIncident}){
  const[incidents,setIncidents]=useState([]),[summary,setSummary]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState("");
  const meta=titles[id]||["SOC Workspace","SentraPixel security operations workspace."];
  async function load(){
@@ -150,6 +164,6 @@ export default function SocModule({id,navigate}){
  useEffect(()=>{load()},[id]);
  return <div className="soc-module-overlay wm-overlay"><div className="wm-head"><div><p>SENTRAPIXEL / {id.replaceAll("-"," ").toUpperCase()}</p><h1>{meta[0]}</h1><span>{meta[1]}</span></div><button onClick={load} disabled={loading}><RefreshCw className={loading?"spin":""}/> Refresh data</button></div>
  {error&&<div className="wm-error"><XCircle/>{error}</div>}
- {loading?<div className="wm-loading"><Radar/><strong>Synchronizing SOC evidence</strong><span>Loading incident data and detailed event context…</span></div>:<ModuleBody id={id} incidents={incidents} summary={summary} navigate={navigate}/>}
+ {loading?<div className="wm-loading"><Radar/><strong>Synchronizing SOC evidence</strong><span>Loading incident data and detailed event context…</span></div>:<ModuleBody id={id} incidents={incidents} summary={summary} navigate={navigate} openIncident={openIncident}/>}
  </div>
 }
