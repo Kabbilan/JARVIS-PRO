@@ -12,12 +12,40 @@ const API=import.meta.env.VITE_API_URL||"http://localhost:8000";
 
 const groups=[
   {label:"",items:[["command","SOC Overview",Radar]]},
-  {label:"MONITORING",items:[["live","Live Events",Activity],["alerts","Alert Center",AlertTriangle],["detection","Threat Detection",ShieldCheck],["anomaly","Anomaly Detection",Zap]]},
-  {label:"INVESTIGATION",items:[["analysis","Investigation",BrainCircuit],["evidence","Evidence Explorer",Fingerprint],["timeline","Attack Timeline",Waypoints],["mitre","MITRE ATT&CK",Network],["hunt","Threat Hunting",Search]]},
-  {label:"INTELLIGENCE",items:[["intel","Threat Intelligence",Globe2],["ioc","IOC Lookup",Search],["domain","IP / Domain Analysis",Globe2],["posture","Vulnerability Intel",ShieldCheck]]},
-  {label:"RESPONSE",items:[["response","Response Center",Waypoints],["containment","Containment Actions",LockKeyhole],["approval","Approval Center",CheckCircle2],["false-positive","False Positive Review",ListChecks]]},
-  {label:"ANALYTICS",items:[["risk","Risk Analytics",BarChart3],["reports","Incident Reports",FileSearch],["executive","Executive Reports",BarChart3]]},
-  {label:"MANAGEMENT",items:[["sources","Data Sources",Database],["integrations","Integrations",Link2],["rules","Detection Rules",SlidersHorizontal],["audit","Audit Logs",History],["settings","Settings",Settings]]}
+  {label:"MONITORING",items:[
+    ["live","Live Events",Activity],["alerts","Alert Center",AlertTriangle],
+    ["detection","Threat Detection",ShieldCheck],["anomaly","Anomaly Detection",Zap],
+    ["posture","Security Posture",ShieldCheck],["system-health","System Health",CircleDot]
+  ]},
+  {label:"INVESTIGATION",items:[
+    ["analysis","Investigation",BrainCircuit],["incidents","Incident Workbench",FileSearch],
+    ["evidence","Evidence Explorer",Fingerprint],["timeline","Attack Timeline",Waypoints],
+    ["mitre","MITRE ATT&CK",Network],["entity-graph","Entity Graph",Network],
+    ["case-notes","Case Notes",FileSearch],["hunt","Threat Hunting",Search]
+  ]},
+  {label:"INTELLIGENCE",items:[
+    ["intel","Threat Intelligence",Globe2],["ioc","IOC Lookup",Search],
+    ["domain","IP / Domain Analysis",Globe2],["vulnerability","Vulnerability Intel",ShieldCheck],
+    ["assets","Asset Intelligence",Database],["ue-analytics","User & Entity Analytics",UserRound]
+  ]},
+  {label:"RESPONSE",items:[
+    ["response","Response Center",Waypoints],["actions","Recommended Actions",ListChecks],
+    ["containment","Containment Actions",LockKeyhole],["approval","Approval Center",CheckCircle2],
+    ["playbooks","Response Playbooks",SlidersHorizontal],["escalations","Escalations",Bell],
+    ["false-positive","False Positive Review",ListChecks]
+  ]},
+  {label:"ANALYTICS",items:[
+    ["risk","Risk Analytics",BarChart3],["trends","Incident Trends",BarChart3],
+    ["detection-analytics","Detection Analytics",Activity],["insights","AI Insights",BrainCircuit],
+    ["sla","SLA Analytics",CircleDot],["reports","Incident Reports",FileSearch],
+    ["executive","Executive Reports",BarChart3]
+  ]},
+  {label:"MANAGEMENT",items:[
+    ["sources","Data Sources",Database],["integrations","Integrations",Link2],
+    ["rules","Detection Rules",SlidersHorizontal],["rule-builder","Rule Builder",SlidersHorizontal],
+    ["automation","Automation",Zap],["audit","Audit Logs",History],
+    ["notifications","Notifications",Bell],["settings","Settings",Settings]
+  ]}
 ];
 
 const native={live:"Live Events",analysis:"Analysis",upload:"Command Center",incidents:"Incidents"};
