@@ -177,7 +177,7 @@ function Overview({select,openIncident}){
 
 export default function SocShell({children}){
   const[active,setActive]=useState("command");
-  const[collapsed,setCollapsed]=useState(false);
+  const[collapsed,setCollapsed]=useState(false);\n  const[mobileOpen,setMobileOpen]=useState(false);
   const[search,setSearch]=useState("");
 
   useEffect(()=>{
@@ -205,7 +205,7 @@ export default function SocShell({children}){
     if(search.trim())select("hunt");
   }
 
-  return <div className={"soc-shell exact-shell "+(collapsed?"soc-collapsed":"")}>
+  return <div className={"soc-shell exact-shell "+(collapsed?"soc-collapsed ":"")+(mobileOpen?"mobile-nav-open":"")}>
     <aside className="soc-sidebar exact-sidebar">
       <div className="soc-brand exact-brand">
         <div className="brand-shield"><ShieldCheck/></div>
@@ -221,12 +221,12 @@ export default function SocShell({children}){
     </aside>
 
     <header className="global-topbar">
-      <button className="menu-toggle" onClick={()=>setCollapsed(v=>!v)}><Menu/></button>
+      <button className="menu-toggle desktop-menu" onClick={()=>setCollapsed(v=>!v)}><Menu/></button><button className="menu-toggle mobile-menu" onClick={()=>setMobileOpen(v=>!v)}><Menu/></button>
       <form className="global-search" onSubmit={submitSearch}><Search/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events, IPs, domains, users, incidents…"/><kbd>Ctrl + K</kbd></form>
       <div className="topbar-actions"><button className="bell"><Bell/><b>3</b></button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
     </header>
 
-    <div className="soc-content exact-content">
+    {mobileOpen&&<button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}\n    <div className="soc-content exact-content">
       {children}
       {active==="command"?<div className="soc-module-overlay overview-overlay exact-overview-overlay"><Overview select={select} openIncident={openIncident}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}
     </div>
