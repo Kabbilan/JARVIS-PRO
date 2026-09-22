@@ -177,7 +177,8 @@ function Overview({select,openIncident}){
 
 export default function SocShell({children}){
   const[active,setActive]=useState("command");
-  const[collapsed,setCollapsed]=useState(false);\n  const[mobileOpen,setMobileOpen]=useState(false);
+  const[collapsed,setCollapsed]=useState(false);
+  const[mobileOpen,setMobileOpen]=useState(false);
   const[search,setSearch]=useState("");
 
   useEffect(()=>{
@@ -192,11 +193,13 @@ export default function SocShell({children}){
 
   function select(id){
     setActive(id);
+    setMobileOpen(false);
     if(native[id])triggerNative(native[id]);
     window.scrollTo({top:0,behavior:"smooth"});
   }
   function openIncident(incidentId){
     setActive("analysis");
+    setMobileOpen(false);
     window.dispatchEvent(new CustomEvent("sentrapixel:open-incident",{detail:incidentId}));
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -226,7 +229,8 @@ export default function SocShell({children}){
       <div className="topbar-actions"><button className="bell"><Bell/><b>3</b></button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
     </header>
 
-    {mobileOpen&&<button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}\n    <div className="soc-content exact-content">
+    {mobileOpen&&<button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}
+    <div className="soc-content exact-content">
       {children}
       {active==="command"?<div className="soc-module-overlay overview-overlay exact-overview-overlay"><Overview select={select} openIncident={openIncident}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}
     </div>
