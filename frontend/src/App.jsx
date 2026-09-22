@@ -61,6 +61,18 @@ function App() {
   }, []);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent("sentrapixel:view", { detail: view }));
+  }, [view]);
+
+  useEffect(() => {
+    const handleOpenIncident = (event) => {
+      if (event.detail) openIncident(String(event.detail), "incidents");
+    };
+    window.addEventListener("sentrapixel:open-incident", handleOpenIncident);
+    return () => window.removeEventListener("sentrapixel:open-incident", handleOpenIncident);
+  }, []);
+
+  useEffect(() => {
     if (!loading) return undefined;
     setLoadingStage(0);
     const timer = window.setInterval(() => setLoadingStage((current) => Math.min(current + 1, loadingStages.length - 1)), 650);
