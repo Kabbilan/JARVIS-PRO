@@ -144,3 +144,87 @@ button,input{font:inherit}
 .soc-shell .incident-table td strong{color:#f1f6fb!important}.soc-shell .incident-table td small{color:#5f7d96!important}
 @media(max-width:900px){.soc-shell .history-metrics{grid-template-columns:1fr 1fr!important}.soc-shell .history-filters{grid-template-columns:1fr!important}}
 @media(max-width:560px){.soc-shell .history-metrics{grid-template-columns:1fr!important}}
+
+/* Mobile responsive shell */
+.mobile-menu{display:none}
+.mobile-backdrop{display:none}
+@media(max-width:760px){
+  html,body,#root,.soc-shell{width:100%;max-width:100%;overflow-x:hidden}
+  .desktop-menu{display:none!important}.mobile-menu{display:grid!important}
+  .exact-sidebar{
+    width:min(82vw,286px)!important;
+    transform:translateX(-105%);
+    transition:transform .22s ease;
+    box-shadow:18px 0 45px rgba(0,0,0,.42);
+    z-index:150;
+  }
+  .mobile-nav-open .exact-sidebar{transform:translateX(0)}
+  .mobile-nav-open .exact-brand>div:last-child,
+  .mobile-nav-open .exact-nav section>p,
+  .mobile-nav-open .exact-nav button span,
+  .mobile-nav-open .exact-nav button>b,
+  .mobile-nav-open .ai-online div{display:flex!important}
+  .mobile-nav-open .exact-brand{justify-content:flex-start!important;padding:0 18px!important}
+  .mobile-nav-open .exact-nav button{justify-content:flex-start!important;padding:0 9px!important}
+  .mobile-nav-open .ai-online{left:12px!important;right:12px!important;justify-content:flex-start!important;padding:7px 10px!important}
+  .mobile-backdrop{display:block;position:fixed;inset:0;z-index:140;border:0;background:rgba(0,6,14,.68);backdrop-filter:blur(2px)}
+  .global-topbar{left:0!important;height:56px;padding:0 10px;gap:8px}
+  .menu-toggle{width:34px;height:34px;flex:none}
+  .global-search{height:34px;flex:1;width:auto!important;margin:0;min-width:0;padding:0 9px}
+  .global-search input{font-size:9px}.global-search input::placeholder{font-size:9px}
+  .global-search kbd{display:none!important}
+  .topbar-actions{gap:0}.topbar-actions>button{width:32px;height:32px}
+  .topbar-actions>button:nth-child(2){display:none!important}
+  .top-user{display:none!important}
+  .soc-module-overlay{left:0!important;top:56px!important;min-height:calc(100dvh - 56px)!important}
+  .soc-shell .app-shell>main{margin-left:0!important;padding:74px 12px 40px!important;width:100%!important;max-width:100%!important}
+  .exact-dashboard{padding:14px 10px 26px!important}
+  .dashboard-heading{display:block!important;margin-bottom:13px}
+  .dashboard-heading h1{font-size:23px!important;line-height:1.08}
+  .dashboard-heading>div:first-child>span{font-size:9px}
+  .status-cluster{display:block!important;margin-top:12px;width:100%}
+  .status-stats{display:none!important}
+  .clock-card{width:100%!important;height:58px;padding:9px 11px}.clock-card>strong{font-size:16px}.clock-card>b{top:14px}
+  .exact-kpis{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .exact-kpis .kpi:last-child{grid-column:1/3!important}
+  .kpi{height:92px;padding:10px;grid-template-columns:38px 1fr 38px;gap:7px}
+  .kpi-icon{width:36px;height:36px}.kpi-icon svg{width:18px}.kpi strong{font-size:21px}.kpi span{font-size:9px}.kpi small{font-size:7px;margin-top:4px}.mini-spark{width:38px}
+  .dashboard-main-grid,.dashboard-bottom-grid{grid-template-columns:1fr!important;gap:9px!important}
+  .global-threat,.live-events-card{height:auto!important;min-height:295px}
+  .exact-card>header{height:42px;padding:0 10px}.exact-card>header strong{font-size:10px}.exact-card>header button{height:27px;padding:0 7px}
+  .map-legend{display:none!important}.map-stage{height:250px!important}.world-map{inset:6px;width:calc(100% - 12px);height:calc(100% - 12px)}
+  .map-side{display:none!important}.map-badge{left:8px;bottom:8px}
+  .live-events-card{overflow:hidden}.exact-event-table{height:auto!important;overflow-x:auto!important;overflow-y:visible!important}
+  .event-head{min-width:560px;grid-template-columns:70px 1.5fr 85px 80px}
+  .event-line{min-width:560px;grid-template-columns:8px 62px 1.5fr 85px 80px;height:36px}
+  .dashboard-bottom-grid>.exact-card{height:auto!important;min-height:215px}
+  .trend-bars{height:150px;padding-inline:10px;gap:4px}.trend-bars .stack{width:18px}.trend-bars span{font-size:6px}
+  .score-wrap{height:auto;grid-template-columns:112px 1fr;padding:10px}.score-ring{width:104px;height:104px}.score-ring>div{width:80px;height:80px}.score-ring strong{font-size:20px}
+  .posture-list p{font-size:7px;padding:5px 0}
+  .copilot-buttons button{min-height:28px}.copilot-input{height:34px}
+  .soc-shell .app-shell>main>header{padding-bottom:14px!important;margin-bottom:14px!important}
+  .soc-shell .app-shell>main>header h1{font-size:23px!important}
+  .soc-shell .history-panel{padding:12px!important}
+  .soc-shell .history-toolbar{flex-direction:column!important;align-items:flex-start!important;gap:10px!important}
+  .soc-shell .history-toolbar>div:last-child{width:100%;display:flex;gap:8px;flex-wrap:wrap}
+  .soc-shell .history-metrics{grid-template-columns:1fr 1fr!important;gap:8px!important}
+  .soc-shell .history-metrics .metric{min-height:88px!important;padding:12px!important}
+  .soc-shell .history-filters{grid-template-columns:1fr!important;gap:8px!important}
+  .soc-shell .incident-table-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  .soc-shell .incident-table{min-width:720px!important}
+}
+@media(max-width:430px){
+  .global-topbar{padding:0 8px}.global-search{padding:0 7px}.bell{display:none!important}
+  .exact-kpis{grid-template-columns:1fr!important}.exact-kpis .kpi:last-child{grid-column:auto!important}
+  .kpi{height:88px;grid-template-columns:38px 1fr 42px}
+  .dashboard-heading h1{font-size:21px!important}
+  .clock-card{height:55px}
+  .score-wrap{grid-template-columns:1fr;justify-items:center}.posture-list{width:100%}
+  .soc-shell .history-metrics{grid-template-columns:1fr!important}
+  .wm-overlay{padding:16px 10px 30px!important}
+  .wm-head h1{font-size:22px!important}
+  .wm-metrics{grid-template-columns:1fr!important}
+  .wm-toolbar{display:flex!important;flex-direction:column!important}.wm-toolbar select{width:100%!important}
+  .wm-row{grid-template-columns:4px 1fr 34px 52px!important;gap:6px!important}
+  .wm-row>span:last-child{display:none!important}
+}
