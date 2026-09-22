@@ -178,6 +178,18 @@ function SLAWorkspace({incidents}){
 function ModuleBody({id,incidents,summary,navigate,openIncident}){
  const {events,indicators}=collect(incidents);
  const critical=incidents.filter(x=>x.severity==="critical").length, high=incidents.filter(x=>x.severity==="high").length, pending=incidents.filter(x=>["open","awaiting_review",null,undefined].includes(x.status)).length;
+ if(id==="system-health") return <SystemHealthWorkspace/>;
+ if(id==="entity-graph") return <EntityGraphWorkspace incidents={incidents}/>;
+ if(id==="case-notes") return <CaseNotes/>;
+ if(id==="vulnerability") return <VulnerabilityWorkspace incidents={incidents}/>;
+ if(id==="assets") return <EntityWorkspace incidents={incidents} mode="assets"/>;
+ if(id==="ue-analytics") return <EntityWorkspace incidents={incidents} mode="users"/>;
+ if(id==="playbooks") return <PlaybookWorkspace/>;
+ if(id==="rule-builder") return <RuleBuilder/>;
+ if(id==="automation") return <AutomationWorkspace/>;
+ if(id==="notifications") return <NotificationWorkspace incidents={incidents} openIncident={openIncident}/>;
+ if(id==="sla") return <SLAWorkspace incidents={incidents}/>;
+ if(id==="escalations") return <><div className="wm-metrics"><Metric label="Critical pending" value={incidents.filter(x=>x.severity==="critical"&&["open","awaiting_review",null,undefined].includes(x.status)).length} sub="Immediate escalation" tone="red"/><Metric label="High pending" value={incidents.filter(x=>x.severity==="high"&&["open","awaiting_review",null,undefined].includes(x.status)).length} sub="Priority escalation" tone="amber"/></div><FilteredIncidents incidents={incidents.filter(x=>["critical","high"].includes(x.severity)&&["open","awaiting_review",null,undefined].includes(x.status))} onPick={x=>openIncident(x.incident_id)}/></>;
  if(["alerts","detection","anomaly"].includes(id)) return <FilteredIncidents incidents={id==="detection"?incidents.filter(x=>["critical","high"].includes(x.severity)):id==="anomaly"?incidents.filter(x=>x.classification==="uncorrelated_high_risk_signal"||x.standalone):incidents} onPick={x=>openIncident(x.incident_id)}/>;
  if(["evidence","timeline","mitre","correlation"].includes(id)) return <DetailDriven incidents={incidents} type={id}/>;
  if(["ioc","ip","domain","hunt","intel"].includes(id)) return <IntelSearch incidents={incidents} mode={id}/>;
