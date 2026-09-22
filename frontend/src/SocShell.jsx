@@ -49,6 +49,16 @@ function Overview({select}){
 export default function SocShell({children}){
  const[active,setActive]=useState("command"),[collapsed,setCollapsed]=useState(false),[open,setOpen]=useState(()=>Object.fromEntries(groups.map(g=>[g.label,true])));
  const module=useMemo(()=>copy[active],[active]);
+ useEffect(()=>{
+   const sync=(event)=>{
+     const map={live:"live",incidents:"incidents",analysis:"analysis",batch:"analysis"};
+     if(map[event.detail]) setActive(map[event.detail]);
+     else if(event.detail==="command") setActive(current=>current==="command"?"command":"upload");
+   };
+   window.addEventListener("sentrapixel:view",sync);
+   return()=>window.removeEventListener("sentrapixel:view",sync);
+ },[]);
  function select(id){setActive(id);if(native[id])triggerNative(native[id]);window.scrollTo({top:0,behavior:"smooth"})}
- return <div className={`soc-shell ${collapsed?"soc-collapsed":""}`}><aside className="soc-sidebar"><div className="soc-brand"><div className="soc-logo"><ShieldCheck/></div>{!collapsed&&<div><strong>SentraPixel</strong><span>Autonomous SOC</span></div>}<button onClick={()=>setCollapsed(v=>!v)}><ChevronRight/></button></div><div className="soc-nav">{groups.map(g=><section key={g.label}>{!collapsed&&<button className="soc-group" onClick={()=>setOpen(v=>({...v,[g.label]:!v[g.label]}))}><span>{g.label}</span>{open[g.label]?<ChevronDown/>:<ChevronRight/>}</button>}{(collapsed||open[g.label])&&<div>{g.items.map(([id,label,Icon])=><button title={label} key={id} className={active===id?"active":""} onClick={()=>select(id)}><Icon/><span>{label}</span></button>)}</div>}</section>)}</div><div className="soc-engine"><span/><div><strong>ENGINE ONLINE</strong>{!collapsed&&<small>Evidence + human review</small>}</div></div></aside><div className="soc-content">{children}{active==="command"?<div className="soc-module-overlay overview-overlay"><Overview select={select}/></div>:native[active]?null:<SocModule id={active} navigate={select}/>}</div></div>
+ function openIncident(incidentId){setActive("analysis");window.dispatchEvent(new CustomEvent("sentrapixel:open-incident",{detail:incidentId}));window.scrollTo({top:0,behavior:"smooth"})}
+ return <div className={`soc-shell ${collapsed?"soc-collapsed":""}`}><aside className="soc-sidebar"><div className="soc-brand"><div className="soc-logo"><ShieldCheck/></div>{!collapsed&&<div><strong>SentraPixel</strong><span>Autonomous SOC</span></div>}<button onClick={()=>setCollapsed(v=>!v)}><ChevronRight/></button></div><div className="soc-nav">{groups.map(g=><section key={g.label}>{!collapsed&&<button className="soc-group" onClick={()=>setOpen(v=>({...v,[g.label]:!v[g.label]}))}><span>{g.label}</span>{open[g.label]?<ChevronDown/>:<ChevronRight/>}</button>}{(collapsed||open[g.label])&&<div>{g.items.map(([id,label,Icon])=><button title={label} key={id} className={active===id?"active":""} onClick={()=>select(id)}><Icon/><span>{label}</span></button>)}</div>}</section>)}</div><div className="soc-engine"><span/><div><strong>ENGINE ONLINE</strong>{!collapsed&&<small>Evidence + human review</small>}</div></div></aside><div className="soc-content">{children}{active==="command"?<div className="soc-module-overlay overview-overlay"><Overview select={select}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}</div></div>
 }
