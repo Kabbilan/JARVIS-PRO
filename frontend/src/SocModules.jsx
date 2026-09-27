@@ -231,22 +231,78 @@ function SettingsPanel(){
  return <section className="wm-panel settings-list"><label><div><strong>Compact analyst density</strong><span>Reduce spacing in data-heavy workspaces.</span></div><input type="checkbox" checked={compact} onChange={e=>setCompact(e.target.checked)}/></label><label><div><strong>Interface motion</strong><span>Allow subtle Digital Twin and status animations.</span></div><input type="checkbox" checked={motion} onChange={e=>setMotion(e.target.checked)}/></label><label><div><strong>Auto-refresh incident data</strong><span>Refresh module data periodically while this session is open.</span></div><input type="checkbox" checked={auto} onChange={e=>setAuto(e.target.checked)}/></label><div className="wm-note"><Settings/><div><strong>Session preference preview</strong><span>These controls are local UI preferences and do not change backend security policy.</span></div></div></section>;
 }
 
-export default function SocModule({id,navigate,openIncident}){
- const[incidents,setIncidents]=useState([]),[summary,setSummary]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState("");
- const meta=titles[id]||["SOC Workspace","SentraPixel security operations workspace."];
- async function load(){
-  setLoading(true);setError("");
-  try{
-   const res=await fetch(`${API}/api/incidents`);if(!res.ok)throw new Error();
-   const body=await res.json();const rows=body.incidents||[];
-   const detailed=await Promise.all(rows.slice(0,30).map(async row=>{try{const r=await fetch(`${API}/api/incidents/${row.incident_id}`);return r.ok?await r.json():row}catch{return row}}));
-   setIncidents(detailed);setSummary(body.summary||{});
-  }catch{setError("SentraPixel incident API is unavailable. Existing analysis features remain accessible from Upload & Analyze.");}
-  finally{setLoading(false)}
+// Share incident data across workspaces so sidebar navigation does not repeat 30 detail requests.
+const incidentCache = { incidents: null, summary: {}, updatedAt: 0, pending: null };
+const CACHE_MS = 60_000;
+
+async function loadIncidentData(force = false, onList) {
+ if (!force && incidentCache.incidents && Date.now() - incidentCache.updatedAt < CACHE_MS) {
+  return { incidents: incidentCache.incidents, summary: incidentCache.summary };
  }
- useEffect(()=>{load()},[id]);
- return <div className="soc-module-overlay wm-overlay"><div className="wm-head"><div><p>SENTRAPIXEL / {id.replaceAll("-"," ").toUpperCase()}</p><h1>{meta[0]}</h1><span>{meta[1]}</span></div><button onClick={load} disabled={loading}><RefreshCw className={loading?"spin":""}/> Refresh data</button></div>
+ if (incidentCache.pending && !force) return incidentCache.pending;
+ const pending = (async () => {
+  const res = await fetch(`${API}/api/incidents`);
+  if (!res.ok) throw new Error("Incident list unavailable");
+  const body = await res.json();
+  const rows = body.incidents || [];
+  const summary = body.summary || {};
+  // Show the workspace as soon as the incident list arrives.
+  incidentCache.incidents = rows;
+  incidentCache.summary = summary;
+  incidentCache.updatedAt = Date.now();
+  onList?.({ incidents: rows, summary });
+  const detailed = await Promise.all(rows.slice(0, 30).map(async row => {
+   try {
+    const response = await fetch(`${API}/api/incidents/${encodeURIComponent(row.incident_id)}`);
+    return response.ok ? await response.json() : row;
+   } catch { return row; }
+  }));
+  incidentCache.incidents = detailed;
+  incidentCache.updatedAt = Date.now();
+  return { incidents: detailed, summary };
+ })();
+ incidentCache.pending = pending;
+ try { return await pending; }
+ finally { if (incidentCache.pending === pending) incidentCache.pending = null; }
+}
+
+export default function SocModule({id,navigate,openIncident}){
+ const[incidents,setIncidents]=useState(()=>incidentCache.incidents||[]);
+ const[summary,setSummary]=useState(()=>incidentCache.summary);
+ const[loading,setLoading]=useState(()=>!incidentCache.incidents);
+ const[error,setError]=useState("");
+ const meta=titles[id]||["SOC Workspace","SentraPixel security operations workspace."];
+
+ useEffect(()=>{
+  let active=true;
+  if (incidentCache.incidents) {
+   setIncidents(incidentCache.incidents);
+   setSummary(incidentCache.summary);
+   setLoading(false);
+  }
+  loadIncidentData(false, data=>{
+   if (!active) return;
+   setIncidents(data.incidents);setSummary(data.summary);setLoading(false);setError("");
+  }).then(data=>{
+   if (!active) return;
+   setIncidents(data.incidents);setSummary(data.summary);setLoading(false);setError("");
+  }).catch(()=>{
+   if (!active) return;
+   setLoading(false);
+   if (!incidentCache.incidents) setError("SentraPixel incident API is unavailable. Existing analysis features remain accessible from Upload & Analyze.");
+  });
+  return ()=>{active=false};
+ },[]);
+
+ async function refresh(){
+  setError("");
+  try{
+   const data=await loadIncidentData(true, list=>{setIncidents(list.incidents);setSummary(list.summary)});
+   setIncidents(data.incidents);setSummary(data.summary);
+  }catch{setError("Could not refresh incident data. Showing the most recent results.");}
+ }
+ return <div className="soc-module-overlay wm-overlay"><div className="wm-head"><div><p>SENTRAPIXEL / {id.replaceAll("-"," ").toUpperCase()}</p><h1>{meta[0]}</h1><span>{meta[1]}</span></div><button onClick={refresh}><RefreshCw/> Refresh data</button></div>
  {error&&<div className="wm-error"><XCircle/>{error}</div>}
- {loading?<div className="wm-loading"><Radar/><strong>Synchronizing SOC evidence</strong><span>Loading incident data and detailed event context…</span></div>:<ModuleBody id={id} incidents={incidents} summary={summary} navigate={navigate} openIncident={openIncident}/>}
+ {loading?<div className="wm-loading"><Radar/><strong>Synchronizing SOC evidence</strong><span>Loading incident data…</span></div>:<ModuleBody id={id} incidents={incidents} summary={summary} navigate={navigate} openIncident={openIncident}/>}
  </div>
 }
