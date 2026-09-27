@@ -25,3 +25,7 @@
 @media(prefers-reduced-motion:reduce){.login-card,.login-live-dot{animation:none}.login-page *, .login-page *:before,.login-page *:after{transition:none!important;scroll-behavior:auto!important}}
 
 .login-preview-note{font-size:11px;line-height:1.4;color:#9bbdd1;margin:-10px 0 14px;text-align:center}
+
+.login-scene-video{display:block;width:100%;height:100%;object-fit:cover;object-position:left center;pointer-events:none}
+@media(max-width:800px){.login-scene-video{object-position:36% center}}
+@media(prefers-reduced-motion:reduce){.login-scene-video{display:none}}

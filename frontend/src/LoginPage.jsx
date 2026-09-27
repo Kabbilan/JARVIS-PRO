@@ -19,7 +19,7 @@ export default function LoginPage() {
   }
 
   return <main className="login-page">
-    <div className="login-scene" aria-hidden="true" />
+    <div className="login-scene" aria-hidden="true"><video className="login-scene-video" autoPlay muted loop playsInline preload="metadata" poster="/soc-login-reference.png"><source src="/sentrapixel-soc-loop.mp4" type="video/mp4" /></video></div>
     <div className="login-scrim" aria-hidden="true" />
     <header className="login-brand">
       <div className="login-brand-mark"><img src="/favicon.svg" alt="" /></div>
