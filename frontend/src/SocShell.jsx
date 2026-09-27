@@ -208,6 +208,35 @@ export default function SocShell({children}){
   const[collapsed,setCollapsed]=useState(false);
   const[mobileOpen,setMobileOpen]=useState(false);
   const[search,setSearch]=useState("");
+  const[notificationsOpen,setNotificationsOpen]=useState(false);
+  const[notifications,setNotifications]=useState([]);
+  const[notificationsLoading,setNotificationsLoading]=useState(true);
+  const[notificationsError,setNotificationsError]=useState(false);
+
+  async function loadNotifications(){
+    setNotificationsLoading(true);
+    setNotificationsError(false);
+    try{
+      const response=await fetch(`${API}/api/incidents`);
+      if(!response.ok)throw new Error("Notifications unavailable");
+      const data=await response.json();
+      const pending=(data.incidents||[]).filter(item=>
+        ["critical","high"].includes(item.severity)&&
+        ["open","awaiting_review",null,undefined].includes(item.status)
+      );
+      setNotifications(pending);
+    }catch{setNotificationsError(true)}
+    finally{setNotificationsLoading(false)}
+  }
+
+  useEffect(()=>{loadNotifications()},[]);
+  useEffect(()=>{
+    if(!notificationsOpen)return;
+    const close=(event)=>{if(event.key==="Escape")setNotificationsOpen(false)};
+    window.addEventListener("keydown",close);
+    return()=>window.removeEventListener("keydown",close);
+  },[notificationsOpen]);
+
 
   useEffect(()=>{
     const sync=(event)=>{
@@ -222,12 +251,14 @@ export default function SocShell({children}){
   function select(id){
     setActive(id);
     setMobileOpen(false);
+    setNotificationsOpen(false);
     if(native[id])triggerNative(native[id]);
     window.scrollTo({top:0,behavior:"smooth"});
   }
   function openIncident(incidentId){
     setActive("analysis");
     setMobileOpen(false);
+    setNotificationsOpen(false);
     window.dispatchEvent(new CustomEvent("sentrapixel:open-incident",{detail:incidentId}));
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -254,9 +285,24 @@ export default function SocShell({children}){
     <header className="global-topbar">
       <button className="menu-toggle desktop-menu" onClick={()=>setCollapsed(v=>!v)}><Menu/></button><button className="menu-toggle mobile-menu" onClick={()=>{setCollapsed(false);setMobileOpen(v=>!v)}}><Menu/></button>
       <form className="global-search" onSubmit={submitSearch}><Search/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events, IPs, domains, users, incidents…"/><kbd>Ctrl + K</kbd></form>
-      <div className="topbar-actions"><button className="bell"><Bell/><b>3</b></button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
+      <div className="topbar-actions"><button className="bell" type="button" aria-label="Notifications" aria-expanded={notificationsOpen} aria-controls="soc-notification-panel" onClick={()=>setNotificationsOpen(v=>!v)}><Bell/>{notifications.length>0&&<b>{notifications.length>99?"99+":notifications.length}</b>}</button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
     </header>
 
+    {notificationsOpen&&<>
+      <button className="notification-backdrop" aria-label="Close notifications" onClick={()=>setNotificationsOpen(false)}/>
+      <section id="soc-notification-panel" className="notification-popover" aria-label="Priority notifications">
+        <div className="notification-popover-header"><div><strong>Priority notifications</strong><span>{notifications.length} cases need review</span></div><button type="button" onClick={loadNotifications} disabled={notificationsLoading} aria-label="Refresh notifications">Refresh</button></div>
+        <div className="notification-popover-list">
+          {notificationsLoading&&<p className="notification-message">Loading notifications…</p>}
+          {!notificationsLoading&&notificationsError&&<p className="notification-message">Could not load notifications. Try Refresh.</p>}
+          {!notificationsLoading&&!notificationsError&&notifications.length===0&&<p className="notification-message">No high-priority cases waiting for review.</p>}
+          {!notificationsLoading&&!notificationsError&&notifications.slice(0,8).map(item=><button type="button" key={item.incident_id} className="notification-item" onClick={()=>openIncident(item.incident_id)}>
+            <span className={"notification-mark "+item.severity}/><span><strong>{item.title||"Security incident"}</strong><small>{item.incident_id} · {item.severity} · {item.status||"open"}</small></span><ChevronRight/>
+          </button>)}
+        </div>
+        <button className="notification-all" type="button" onClick={()=>select("notifications")}>View all notifications <ChevronRight/></button>
+      </section>
+    </>}
     {mobileOpen&&<button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}
     <div className={"soc-content exact-content "+(active==="command"||!native[active]?"has-module-overlay":"")}>
       {children}
