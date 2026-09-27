@@ -232,14 +232,17 @@ function SettingsPanel(){
 }
 
 // Share incident data across workspaces so sidebar navigation does not repeat 30 detail requests.
-const incidentCache = { incidents: null, summary: {}, updatedAt: 0, pending: null };
+const incidentCache = { incidents: null, summary: {}, updatedAt: 0, pending: null, listeners: new Set() };
 const CACHE_MS = 60_000;
 
 async function loadIncidentData(force = false, onList) {
  if (!force && incidentCache.incidents && Date.now() - incidentCache.updatedAt < CACHE_MS) {
   return { incidents: incidentCache.incidents, summary: incidentCache.summary };
  }
- if (incidentCache.pending && !force) return incidentCache.pending;
+ if (incidentCache.pending && !force) {
+  if (incidentCache.incidents) onList?.({ incidents: incidentCache.incidents, summary: incidentCache.summary });
+  return incidentCache.pending;
+ }
  const pending = (async () => {
   const res = await fetch(`${API}/api/incidents`);
   if (!res.ok) throw new Error("Incident list unavailable");
@@ -250,7 +253,7 @@ async function loadIncidentData(force = false, onList) {
   incidentCache.incidents = rows;
   incidentCache.summary = summary;
   incidentCache.updatedAt = Date.now();
-  onList?.({ incidents: rows, summary });
+  for (const listener of incidentCache.listeners) listener({ incidents: rows, summary });
   const detailed = await Promise.all(rows.slice(0, 30).map(async row => {
    try {
     const response = await fetch(`${API}/api/incidents/${encodeURIComponent(row.incident_id)}`);
@@ -280,10 +283,12 @@ export default function SocModule({id,navigate,openIncident}){
    setSummary(incidentCache.summary);
    setLoading(false);
   }
-  loadIncidentData(false, data=>{
+  const onList=data=>{
    if (!active) return;
    setIncidents(data.incidents);setSummary(data.summary);setLoading(false);setError("");
-  }).then(data=>{
+  };
+  incidentCache.listeners.add(onList);
+  loadIncidentData(false, onList).then(data=>{
    if (!active) return;
    setIncidents(data.incidents);setSummary(data.summary);setLoading(false);setError("");
   }).catch(()=>{
@@ -291,7 +296,7 @@ export default function SocModule({id,navigate,openIncident}){
    setLoading(false);
    if (!incidentCache.incidents) setError("SentraPixel incident API is unavailable. Existing analysis features remain accessible from Upload & Analyze.");
   });
-  return ()=>{active=false};
+  return ()=>{active=false;incidentCache.listeners.delete(onList)};
  },[]);
 
  async function refresh(){
