@@ -128,3 +128,29 @@ body,.soc-shell,.soc-shell .app-shell,.soc-shell .app-shell>main,
  .soc-shell *,.soc-shell *::before,.soc-shell *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
  .soc-shell .kpi:hover,.soc-shell .exact-nav button:hover{transform:none}
 }
+
+/* Native analysis, uploads, and incident workspace */
+.soc-shell :is(.scenario-panel,.card,.incident-hero,.metric,.empty-state,.analysis-loader,.history-panel,.agent-card,.batch-incident-card){
+ background:linear-gradient(145deg,rgba(45,62,82,.48),rgba(26,35,50,.7))!important;
+ color:var(--sp-text)!important;border:1px solid rgba(0,217,255,.25)!important;
+ border-radius:12px!important;box-shadow:var(--sp-shadow-md)!important
+}
+.soc-shell :is(.scenario-panel,.card,.incident-hero,.history-panel,.agent-card){padding:24px}
+.soc-shell .scenario-option,.soc-shell .custom-alerts,.soc-shell .actions div{
+ background:var(--sp-surface)!important;color:var(--sp-text)!important;
+ border:1px solid rgba(160,181,196,.3)!important;border-radius:8px
+}
+.soc-shell .scenario-option.selected{border-color:var(--sp-accent)!important;box-shadow:0 0 0 2px rgba(0,217,255,.17)}
+.soc-shell :is(.scenario-copy small,.incident-hero p,.narrative,.event p,.batch-incident-card p){color:var(--sp-muted)!important;font-size:clamp(12px,1.05vw,15px);line-height:1.55}
+.soc-shell :is(.scenario-panel h2,.card-title h3,.incident-hero h2){color:var(--sp-text)!important}
+.soc-shell .custom-alerts textarea{background:#0b1726!important;color:var(--sp-text)!important}
+.soc-shell .metric strong{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
+.soc-shell .metric.red strong{color:#ff879e}
+.soc-shell .metric.green strong{color:#83ffa0}
+.soc-shell .metric.blue strong{color:#85eafa}
+.soc-shell .error,.soc-shell .wm-error{background:rgba(255,0,64,.12);color:#ffb0c2;border-color:rgba(255,0,64,.45)}
+.soc-shell .review-result.approved{background:rgba(0,255,65,.1);color:#99ffaf}
+.soc-shell .review-result.rejected{background:rgba(255,0,64,.12);color:#ffb0c2}
+@media(max-width:760px){
+ .soc-shell :is(.scenario-panel,.card,.incident-hero,.history-panel,.agent-card){padding:16px}
+}
