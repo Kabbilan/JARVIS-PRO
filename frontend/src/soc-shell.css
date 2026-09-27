@@ -431,3 +431,4 @@ button,input{font:inherit}
  .copilot-buttons button{font-size:10px}
  .map-side{display:none!important}
 }
+.exact-card > header{margin-bottom:0!important}
