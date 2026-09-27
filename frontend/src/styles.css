@@ -481,3 +481,94 @@ main:after{z-index:-1!important;opacity:.65}
 .batch-summary{width:100%;animation:fadeLift .6s .08s both}.batch-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:18px}.batch-toolbar h2{margin:4px 0 5px;font-size:clamp(21px,2vw,29px);color:#17304a}.batch-toolbar p:not(.section-label){margin:0;color:#74899c;font-size:10px}.batch-toolbar>button{display:flex;align-items:center;gap:7px;border:1px solid #d8e6ef;background:#fff;color:#36546c;border-radius:9px;padding:10px 13px;font-weight:700}.batch-toolbar>button svg{width:15px}.batch-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}.batch-incidents{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.batch-incident-card{text-align:left;border:1px solid #dbe8f1;border-radius:14px;background:#fff;padding:17px;box-shadow:0 10px 28px rgba(37,86,125,.07);transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease}.batch-incident-card:hover{transform:translateY(-5px);box-shadow:0 17px 38px rgba(37,86,125,.12);border-color:#9ddcf0}.batch-incident-card>div{display:flex;align-items:center;justify-content:space-between;gap:10px}.batch-id{font:800 9px 'Space Mono',monospace;color:#168dbd}.batch-incident-card h3{margin:13px 0 8px;font-size:17px;color:#1b354d}.batch-incident-card p{min-height:44px;margin:0;color:#718699;font-size:10px;line-height:1.5}.batch-incident-card footer{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:9px;margin-top:15px;padding-top:12px;border-top:1px solid #e7eef4;color:#5f778b;font:700 8px 'Space Mono',monospace}.batch-incident-card footer span:first-child{display:flex;align-items:center;gap:5px}.batch-incident-card footer svg{width:13px}.batch-noise{display:flex;gap:10px;align-items:flex-start;margin-top:16px;padding:14px 16px;border:1px solid #cde9dc;border-radius:11px;background:#f2fcf7;color:#33745c}.batch-noise svg{width:18px;flex:0 0 18px}.batch-noise strong,.batch-noise span{display:block}.batch-noise strong{font-size:11px}.batch-noise span{margin-top:4px;font-size:9px;line-height:1.5;color:#66877a}
 @media(max-width:1050px){.batch-incidents{grid-template-columns:1fr 1fr}.batch-metrics{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.batch-toolbar{flex-direction:column}.batch-toolbar>button{width:100%;justify-content:center}.batch-incidents,.batch-metrics{grid-template-columns:1fr}.batch-incident-card footer{grid-template-columns:1fr auto}.batch-incident-card footer svg{display:none}}
+
+/* Dark SOC shell: keep every native workflow legible on its dark background.
+   These rules are scoped to SentraPixel's shell; the original light styles remain
+   available outside it. */
+.soc-shell .app-shell>main,
+.soc-shell .analysis-workspace,
+.soc-shell .batch-summary{color:#e8f0f7}
+.soc-shell .app-shell>main :is(h1,h2,h3),
+.soc-shell .scenario-panel h2,
+.soc-shell .empty-state p,
+.soc-shell .history-state strong,
+.soc-shell .batch-toolbar h2{color:#e8f0f7!important}
+.soc-shell :is(.scenario-panel,.card,.metric,.incident-hero,.empty-state,
+ .analysis-loader,.history-panel,.agent-card,.batch-incident-card,.soc-analytics){
+  background:linear-gradient(145deg,#071d32,#06182b)!important;
+  color:#e8f0f7!important;border:1px solid #194260!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.18)!important
+}
+.soc-shell .scenario-option{
+  background:#0b2940!important;border:1px solid #286080!important;color:#e8f0f7!important
+}
+.soc-shell .scenario-option:hover{background:#103650!important;border-color:#41c8ef!important}
+.soc-shell .scenario-option.selected{
+  background:linear-gradient(145deg,#104365,#0a2b45)!important;
+  border-color:#41d6fa!important;box-shadow:inset 0 0 0 1px #41d6fa33!important
+}
+.soc-shell .scenario-icon,.soc-shell .scanner,.soc-shell .card-title>span,
+.soc-shell .node span{background:#103b55!important;color:#70ddff!important;border-color:#26789d!important}
+.soc-shell :is(.scenario-copy small,.scenario-footer p,.empty-state,
+ .analysis-loader>div:nth-child(2)>span,.incident-hero p,.narrative,
+ .agent-narrative>p:nth-child(2),.event p,.factor-list p,
+ .batch-incident-card p,.history-state,.history-filters>span){color:#a9bfd0!important}
+.soc-shell .scenario-copy strong,.soc-shell .batch-incident-card h3{color:#e8f0f7!important}
+.soc-shell :is(.input-tabs button,.analysis-toolbar,.analysis-toolbar>button,
+ .history-toolbar button,.history-state button,.report-button,
+ .upload-row button,.file-button,.batch-toolbar>button){
+  background:#0d2b43!important;color:#c9e5f4!important;border-color:#2b5874!important
+}
+.soc-shell :is(.input-tabs button.active,.report-button:hover,
+ .analysis-toolbar>button:hover){background:#104260!important;color:#8aeaff!important;border-color:#39c7ed!important}
+.soc-shell .analysis-toolbar>div strong,.soc-shell .analysis-crumb{color:#b8d2e1!important}
+.soc-shell .analysis-status{background:#103a30!important;color:#8ef1bd!important;border-color:#28795b!important}
+.soc-shell .analysis-status.processing{background:#10384d!important;color:#8eeaff!important;border-color:#277ca0!important}
+.soc-shell :is(.custom-alerts,.upload-row,.containment-gate,.safety-policy,
+ .agent-grid>div,.actions div,.mitre-list>div,.classification-box,
+ .verification-score,.risk-legend-row,.impact-preview>div){
+  background:#0b263b!important;border-color:#24516e!important;color:#dcebf4!important
+}
+.soc-shell :is(.custom-alerts textarea,.containment-gate select,
+ .containment-gate textarea,.history-filters input,.history-filters select){
+  background:#071a2b!important;color:#e8f0f7!important;border-color:#2d5871!important
+}
+.soc-shell :is(.custom-alerts textarea,.containment-gate textarea,.history-filters input)::placeholder{color:#91aebf}
+.soc-shell :is(.containment-gate>label,.impact-preview strong,.indicators strong,
+ .agent-list li,.agent-grid strong,.classification-box span,
+ .risk-legend-row,.severity-bars b){color:#d4e7f2!important}
+.soc-shell :is(.impact-preview span,.safety-policy span,.agent-loading span,
+ .event small,.indicators span,.risk-orb span,.verification-score span){color:#a9bfd0!important}
+.soc-shell .risk-orb,.soc-shell .incident-hero.low .risk-orb,
+.soc-shell .incident-hero.medium .risk-orb{background:#11283b!important}
+.soc-shell .risk-donut:before,.soc-shell .readiness-ring:after{
+  background:#0b263b!important;border-color:#24516e!important
+}
+.soc-shell .agent-card,.soc-shell .verifier-card.verified,
+.soc-shell .verifier-card.needs_review{background:#071d32!important}
+.soc-shell .incident-table-wrap{border-color:#24516e!important}
+.soc-shell .incident-table th{background:#102d43!important;color:#bad8e8!important}
+.soc-shell .incident-table tbody tr{background:#091d30}
+.soc-shell .incident-table tbody tr:nth-child(even){background:#0c263b}
+.soc-shell .incident-table tbody tr:hover{background:#133b54!important}
+.soc-shell .incident-table td{border-color:#1d4058!important;color:#bcd0dd!important}
+.soc-shell .incident-table td:first-child strong{color:#e8f0f7!important}
+.soc-shell :is(.severity-pill,.status-pill,.provider-badge,
+ .incident-meta span,.priority){background:#122f45!important;border-color:#346079!important}
+.soc-shell .severity-pill.critical,.soc-shell .severity-pill.high{color:#ff9bad!important}
+.soc-shell .severity-pill.medium{color:#ffcf77!important}
+.soc-shell .severity-pill.low,.soc-shell .status-pill.approved{color:#83e8b7!important}
+.soc-shell .status-pill.rejected{color:#ff9bad!important}
+.soc-shell .status-pill,.soc-shell .provider-badge{color:#add5e9!important}
+.soc-shell .error,.soc-shell .agent-error,
+.soc-shell .review-result.rejected{background:#351924!important;color:#ffabb8!important;border-color:#7d3647!important}
+.soc-shell .review-result.approved,.soc-shell .review-result.false_positive,
+.soc-shell .grounded,.soc-shell .event em{background:#10392e!important;color:#8ef1bd!important;border-color:#2b7757!important}
+.soc-shell .confidence-warning{background:#3b2e15!important;color:#ffe2a2!important}
+.soc-shell .batch-incident-card footer,.soc-shell .batch-id{color:#9edaf2!important}
+.soc-shell :is(.batch-noise,.agent-list li:before){background:#123b35!important;color:#9aefcc!important}
+.soc-shell .batch-noise span{color:#a9bfd0!important}
+.soc-shell .score-cell{color:#81ddff!important}
+.soc-shell :is(button,input,textarea,select,a):focus-visible{
+  outline:2px solid #46d6f5!important;outline-offset:2px
+}
