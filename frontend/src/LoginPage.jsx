@@ -23,7 +23,7 @@ export default function LoginPage() {
     <div className="login-scene" aria-hidden="true" />
     <div className="login-scrim" aria-hidden="true" />
     <header className="login-brand">
-      <div className="login-brand-mark"><ShieldCheck size={36} strokeWidth={1.8} /></div>
+      <div className="login-brand-mark"><img src="/favicon.svg" alt="" /></div>
       <div><strong>Sentra<span>Pixel</span></strong><p>See Threats. Stop Breaches.</p></div>
     </header>
     <div className="login-security" aria-label="Secure detect respond prevent">SECURE <b>•</b> DETECT <b>•</b> RESPOND <b>•</b> PREVENT <i /></div>
