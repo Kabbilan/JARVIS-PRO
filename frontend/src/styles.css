@@ -578,3 +578,22 @@ main:after{z-index:-1!important;opacity:.65}
 }
 .soc-shell .availability.pending{color:#ffcf77!important}
 .soc-shell .input-tabs svg,.soc-shell .file-button svg{color:inherit}
+
+/* Incident history keeps the toolbar visible while its data table scrolls. */
+.soc-shell .incident-table-wrap{
+ max-height:min(60vh,640px);
+ overflow:auto;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ scrollbar-width:thin;
+ scrollbar-color:#2b6687 #061726;
+ border:1px solid #1d4159!important;
+ border-radius:9px;
+ background:#061827
+}
+.soc-shell .incident-table thead th{
+ position:sticky;top:0;z-index:1;background:#102d43!important
+}
+@media(max-width:760px){
+ .soc-shell .incident-table-wrap{max-height:min(56vh,520px);scrollbar-gutter:auto}
+}
