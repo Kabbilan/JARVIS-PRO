@@ -110,7 +110,7 @@ function ReportWorkspace({incidents,openIncident}){
   }catch{window.alert("Report generation failed. Check the SentraPixel backend connection.");}
   finally{setBusy("")}
  }
- return <section className="wm-panel"><div className="wm-panel-title"><strong>Evidence-backed incident reports</strong><small>{incidents.length} report-ready cases</small></div>{incidents.length?incidents.map(i=><article className="wm-report-row" key={i.incident_id}><div><Severity value={i.severity}/><strong>{i.title}</strong><small>{i.incident_id} · score {i.score}</small></div><button onClick={()=>openIncident(i.incident_id)}><FileSearch/> Open</button><button onClick={()=>download(i)} disabled={busy===i.incident_id}><Database/> {busy===i.incident_id?"Generating…":"PDF"}</button></article>):<Empty icon={FileSearch} title="No reports available"/>}</section>
+ return <section className="wm-panel"><div className="wm-panel-title"><strong>Evidence-backed incident reports</strong><small>{incidents.length} report-ready cases</small></div><div className="wm-report-list">{incidents.length?incidents.map(i=><article className="wm-report-row" key={i.incident_id}><div><Severity value={i.severity}/><strong>{i.title}</strong><small>{i.incident_id} · score {i.score}</small></div><button onClick={()=>openIncident(i.incident_id)}><FileSearch/> Open</button><button onClick={()=>download(i)} disabled={busy===i.incident_id}><Database/> {busy===i.incident_id?"Generating…":"PDF"}</button></article>):<Empty icon={FileSearch} title="No reports available"/>}</div></section>
 }
 
 function EntityWorkspace({incidents,mode}){
@@ -212,7 +212,7 @@ function ModuleBody({id,incidents,summary,navigate,openIncident}){
  }
  if(id==="insights"){
    const investigated=incidents.filter(x=>x.investigation);
-   return <section className="wm-panel">{investigated.length?investigated.map(i=><article className="wm-insight" key={i.incident_id}><BrainCircuit/><div><strong>{i.title}</strong><span>{i.investigation?.provider||"AI/fallback provider"} · {i.incident_id}</span><p>{i.investigation?.narrative||"Investigation output stored for this incident."}</p></div></article>):<Empty icon={BrainCircuit} title="No stored AI investigations" text="Open an incident and run AI Investigation to populate this workspace."/>}</section>;
+   return <section className="wm-panel"><div className="wm-insight-list">{investigated.length?investigated.map(i=><article className="wm-insight" key={i.incident_id}><BrainCircuit/><div><strong>{i.title}</strong><span>{i.investigation?.provider||"AI/fallback provider"} · {i.incident_id}</span><p>{i.investigation?.narrative||"Investigation output stored for this incident."}</p></div></article>):<Empty icon={BrainCircuit} title="No stored AI investigations" text="Open an incident and run AI Investigation to populate this workspace."/>}</div></section>;
  }
  if(["reports","report-history"].includes(id)) return <ReportWorkspace incidents={incidents} openIncident={openIncident}/>;
  if(id==="sources"){
