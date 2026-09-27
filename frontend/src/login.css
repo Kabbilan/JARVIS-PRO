@@ -1,6 +1,6 @@
 .login-page{--login-cyan:#20cfff;position:relative;isolation:isolate;min-height:100svh;width:100%;overflow:hidden;color:#f7fafc;background:#020912;font-family:'DM Sans',Inter,system-ui,sans-serif;display:grid;grid-template-rows:auto 1fr auto;padding:38px clamp(20px,3.4vw,64px) 0}
 .login-scene,.login-scrim{position:absolute;inset:0;z-index:-1;pointer-events:none}
-.login-scene{background:url('/soc-login-reference.png') left center / cover no-repeat;transform:scale(1.015)}
+.login-scene{background:url('/soc-login-reference.png') left 70% / auto 135% no-repeat;transform:scale(1.015)}
 .login-scrim{background:linear-gradient(90deg,rgba(2,9,18,.42) 0%,rgba(2,9,18,.1) 51%,rgba(2,9,18,.75) 66%,rgba(2,9,18,.65) 100%),linear-gradient(0deg,#020912 0%,transparent 24%,rgba(2,9,18,.24) 100%)}
 .login-page :is(button,input,a):focus-visible{outline:2px solid #71dcff;outline-offset:3px}
 .login-brand{position:relative;z-index:1;display:flex;gap:14px;align-items:center;width:max-content;margin:0;padding:0}
