@@ -258,7 +258,7 @@ export default function SocShell({children}){
     </header>
 
     {mobileOpen&&<button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}
-    <div className="soc-content exact-content">
+    <div className={"soc-content exact-content "+(active==="command"||!native[active]?"has-module-overlay":"")}>
       {children}
       {active==="command"?<div className="soc-module-overlay overview-overlay exact-overview-overlay"><Overview select={select} openIncident={openIncident}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}
     </div>
