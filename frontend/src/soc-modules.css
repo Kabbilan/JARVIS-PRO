@@ -106,3 +106,30 @@
  .wm-overlay .wm-row small,.wm-overlay .wm-notifications span{font-size:10px!important}
  .wm-overlay .wm-sev{font-size:9px}
 }
+
+/* Consistent readable detail text across SOC modules. */
+.wm-overlay .wm-loading span,.wm-overlay .wm-empty span,
+.wm-overlay .wm-evidence-grid span,.wm-overlay .wm-tech-grid span,
+.wm-overlay .wm-evidence-grid small,.wm-overlay .wm-tech-grid small,
+.wm-overlay .wm-timeline>article>span,.wm-overlay .wm-tech-grid article b,
+.wm-overlay .wm-search-hero span,.wm-overlay .intel-results article span,
+.wm-overlay .intel-results article p,.wm-overlay .posture-bars b,
+.wm-overlay .wm-bars span,.wm-overlay .wm-insight p,
+.wm-overlay .wm-source-grid span,.wm-overlay .wm-integration-grid span,
+.wm-overlay .wm-audit article>span,.wm-overlay .wm-audit div p,
+.wm-overlay .wm-audit div small,.wm-overlay .settings-list label span,
+.wm-overlay .wm-entity-grid article>b,.wm-overlay .entity-rank,
+.wm-overlay .graph-col>span,.wm-overlay .graph-col>b,
+.wm-overlay .graph-links small,.wm-overlay .case-notes>div:last-child span,
+.wm-overlay .health-grid article span,.wm-overlay .wm-playbooks article>span,
+.wm-overlay .rule-fields label span,.wm-overlay .rule-preview>span,
+.wm-overlay .rule-preview code{font-size:11px;line-height:1.45}
+.wm-overlay .wm-bars>div>strong,.wm-overlay .wm-audit div strong,
+.wm-overlay .health-grid article strong,.wm-overlay .wm-playbooks strong,
+.wm-overlay .rule-preview>strong{font-size:13px;line-height:1.35}
+.wm-overlay .wm-playbooks p{font-size:11px!important;line-height:1.5!important}
+.wm-overlay .wm-playbooks button,.wm-overlay .case-notes button{font-size:11px}
+.wm-overlay .wm-source-grid,.wm-overlay .wm-integration-grid,
+.wm-overlay .wm-audit,.wm-overlay .wm-playbooks,
+.wm-overlay .health-grid{min-width:0}
+.wm-overlay :is(.wm-source-grid,.wm-integration-grid,.wm-audit,.wm-playbooks,.health-grid) article{min-width:0}
