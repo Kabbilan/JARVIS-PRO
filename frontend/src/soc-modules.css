@@ -64,3 +64,45 @@
   max-height:min(56vh,520px);padding:4px 6px;scrollbar-gutter:auto
  }
 }
+
+/* Workspace typography: dense tables remain readable at normal desktop zoom. */
+.wm-overlay .wm-head p{font-size:11px}
+.wm-overlay .wm-head span{font-size:14px;line-height:1.5;color:#a8c1d2}
+.wm-overlay .wm-head button{font-size:12px}
+.wm-overlay .wm-panel-title strong{font-size:15px}
+.wm-overlay .wm-panel-title small{font-size:11px}
+.wm-overlay .wm-metric>span,.wm-overlay .wm-metric small{font-size:11px}
+.wm-overlay .wm-row{min-height:62px;padding:10px 8px;gap:12px}
+.wm-overlay .wm-row strong{font-size:13px;line-height:1.3}
+.wm-overlay .wm-row small{font-size:11px!important;line-height:1.35;color:#97b5c9}
+.wm-overlay .wm-row>b{font-size:15px}
+.wm-overlay .wm-sev{font-size:10px;padding:6px 8px}
+.wm-overlay .wm-notifications>button{min-height:64px;padding:12px 8px;gap:12px}
+.wm-overlay .wm-notifications>button>svg{width:19px;height:19px}
+.wm-overlay .wm-notifications strong{font-size:14px;line-height:1.3}
+.wm-overlay .wm-notifications span{font-size:11px;line-height:1.35;color:#99b8cb}
+.wm-overlay .wm-notifications .wm-sev{font-size:10px}
+.wm-overlay .wm-report-row{min-height:64px;padding:12px 8px}
+.wm-overlay .wm-report-row>div>strong{font-size:13px}
+.wm-overlay .wm-report-row>div>small{font-size:11px}
+.wm-overlay .wm-report-row button{font-size:11px;min-height:34px}
+.wm-overlay .wm-entity-grid article strong,
+.wm-overlay .wm-action-grid strong,
+.wm-overlay .wm-insight strong,
+.wm-overlay .intel-results article strong{font-size:13px}
+.wm-overlay .wm-entity-grid article span,
+.wm-overlay .wm-action-grid span,
+.wm-overlay .wm-insight span,
+.wm-overlay .intel-results article small{font-size:11px}
+.wm-overlay .wm-detail-head p,
+.wm-overlay .wm-timeline div p,
+.wm-overlay .wm-timeline div small,
+.wm-overlay .wm-link-row small{font-size:11px!important}
+.wm-overlay .wm-toolbar input,.wm-overlay .wm-toolbar select,
+.wm-overlay .wm-search-hero input{font-size:13px}
+@media(max-width:700px){
+ .wm-overlay .wm-row{min-height:60px;gap:6px}
+ .wm-overlay .wm-row strong,.wm-overlay .wm-notifications strong{font-size:12px}
+ .wm-overlay .wm-row small,.wm-overlay .wm-notifications span{font-size:10px!important}
+ .wm-overlay .wm-sev{font-size:9px}
+}
