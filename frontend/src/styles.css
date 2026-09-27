@@ -30,7 +30,7 @@
 /* Premium cursor + 3D interaction layer */
 :root{--glow:#39c9f3;--glow2:#8b7cff}
 html{scroll-behavior:smooth}
-body{cursor:auto;perspective:1400px}
+body{cursor:auto}
 button,a,label,.scenario-option,.metric,.card,.incident-hero,.history-panel{cursor:pointer}
 main{transform-style:preserve-3d}
 .scenario-panel,.card,.metric,.incident-hero,.history-panel,.empty-state,.analysis-loader{
