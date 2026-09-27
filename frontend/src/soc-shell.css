@@ -345,3 +345,17 @@ button,input{font:inherit}
   .map-legend{max-width:38vw!important}
   .map-side{width:calc(50% - 8px)!important}
 }
+
+/* Readable navigation and dashboard labels */
+.exact-nav section>p{font-size:10px;line-height:1.4}
+.exact-nav button{font-size:12px;min-height:31px;height:auto;line-height:1.25}
+.exact-nav button svg{width:16px;height:16px}
+.exact-brand small{font-size:10px}
+.global-search input{font-size:12px}
+.dashboard-heading>div:first-child>span{font-size:13px}
+.kpi span{font-size:12px}
+.kpi small{font-size:10px}
+@media(max-width:760px){
+  .mobile-nav-open .exact-nav section>p{font-size:10px!important}
+  .mobile-nav-open .exact-nav button{min-height:36px!important;font-size:12px}
+}
