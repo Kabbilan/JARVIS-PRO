@@ -237,28 +237,29 @@ export default function SocShell({children}){
   }
 
   return <div className={"soc-shell exact-shell "+(collapsed?"soc-collapsed ":"")+(mobileOpen?"mobile-nav-open":"")}>
+    <a className="sp-skip-link" href="#sentrapixel-content">Skip to content</a>
     <aside className="soc-sidebar exact-sidebar">
       <div className="soc-brand exact-brand">
         <div className="brand-shield"><ShieldCheck/></div>
         {!collapsed&&<div><strong>Sentra<span>Pixel</span></strong><small>Autonomous SOC Intelligence</small></div>}
       </div>
-      <nav className="exact-nav">
+      <nav className="exact-nav" aria-label="SOC sections">
         {groups.map(group=><section key={group.label||"overview"}>
           {!collapsed&&group.label&&<p>{group.label}</p>}
-          {group.items.map(([id,label,Icon])=><button key={id} title={label} className={active===id?"active":""} onClick={()=>select(id)}><Icon/><span>{label}</span>{id==="alerts"&&!collapsed&&<b>{Math.max(0,12)}</b>}</button>)}
+          {group.items.map(([id,label,Icon])=><button key={id} title={label} aria-current={active===id?"page":undefined} className={active===id?"active":""} onClick={()=>select(id)}><Icon/><span>{label}</span>{id==="alerts"&&!collapsed&&<b>{Math.max(0,12)}</b>}</button>)}
         </section>)}
       </nav>
       <button className="ai-online" onClick={()=>select("analysis")}><BrainCircuit/><div><span>AI Copilot</span><strong><i/> Online</strong></div></button>
     </aside>
 
     <header className="global-topbar">
-      <button className="menu-toggle desktop-menu" onClick={()=>setCollapsed(v=>!v)}><Menu/></button><button className="menu-toggle mobile-menu" onClick={()=>{setCollapsed(false);setMobileOpen(v=>!v)}}><Menu/></button>
-      <form className="global-search" onSubmit={submitSearch}><Search/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events, IPs, domains, users, incidents…"/><kbd>Ctrl + K</kbd></form>
-      <div className="topbar-actions"><button className="bell"><Bell/><b>3</b></button><button><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
+      <button aria-label="Collapse sidebar" className="menu-toggle desktop-menu" onClick={()=>setCollapsed(v=>!v)}><Menu/></button><button aria-label="Open navigation" className="menu-toggle mobile-menu" onClick={()=>{setCollapsed(false);setMobileOpen(v=>!v)}}><Menu/></button>
+      <form className="global-search" onSubmit={submitSearch}><Search/><input aria-label="Search SOC data" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events, IPs, domains, users, incidents…"/><kbd>Ctrl + K</kbd></form>
+      <div className="topbar-actions"><button aria-label="Notifications" className="bell"><Bell/><b>3</b></button><button aria-label="Appearance settings" onClick={()=>select("settings")}><Sun/></button><div className="top-user"><span>KM</span><div><strong>Kabbilan M</strong><small>SOC Analyst</small></div><ChevronDown/></div></div>
     </header>
 
     {mobileOpen&&<button className="mobile-backdrop" aria-label="Close navigation" onClick={()=>setMobileOpen(false)}/>}
-    <div className="soc-content exact-content">
+    <div id="sentrapixel-content" tabIndex="-1" className="soc-content exact-content">
       {children}
       {active==="command"?<div className="soc-module-overlay overview-overlay exact-overview-overlay"><Overview select={select} openIncident={openIncident}/></div>:native[active]?null:<SocModule id={active} navigate={select} openIncident={openIncident}/>}
     </div>
