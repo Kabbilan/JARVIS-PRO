@@ -12,11 +12,10 @@ const capabilities = [
 export default function LoginPage() {
   const [visible, setVisible] = useState(false);
   const [workstation, setWorkstation] = useState(true);
-  const [message, setMessage] = useState("");
 
   function submit(event) {
     event.preventDefault();
-    setMessage("Sign-in is not connected yet. Your credentials were not sent or saved.");
+    window.location.href = "/#/dashboard";
   }
 
   return <main className="login-page">
@@ -36,19 +35,19 @@ export default function LoginPage() {
         <p className="login-eyebrow">WELCOME TO THE SOC</p>
         <h1 id="login-title">Welcome to the <span>SOC</span></h1>
         <p className="login-subtitle">Same mission. A safer tomorrow.</p>
-        <form onSubmit={submit} noValidate>
+        <form onSubmit={submit} noValidate autoComplete="off">
           <label htmlFor="corporate-email">Corporate Email</label>
-          <div className="login-input"><Mail aria-hidden="true" /><input id="corporate-email" name="email" type="email" autoComplete="username" placeholder="you@yourcompany.com" required /></div>
+          <div className="login-input"><Mail aria-hidden="true" /><input id="corporate-email" name="email" type="email" autoComplete="off" placeholder="you@yourcompany.com" required /></div>
           <label htmlFor="account-password">Password</label>
-          <div className="login-input"><LockKeyhole aria-hidden="true" /><input id="account-password" name="password" type={visible ? "text" : "password"} autoComplete="current-password" placeholder="Enter your password" required /><button type="button" onClick={() => setVisible(value => !value)} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible}>{visible ? <EyeOff /> : <Eye />}</button></div>
+          <div className="login-input"><LockKeyhole aria-hidden="true" /><input id="account-password" name="password" type={visible ? "text" : "password"} autoComplete="off" placeholder="Enter your password" required /><button type="button" onClick={() => setVisible(value => !value)} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible}>{visible ? <EyeOff /> : <Eye />}</button></div>
           <div className="login-form-options"><label className="login-check"><input type="checkbox" checked={workstation} onChange={event => setWorkstation(event.target.checked)} /> This is a secure workstation</label><span title="Password recovery is not connected yet">Forgot password?</span></div>
-          {message && <p className="login-error" role="alert">{message}</p>}
+          <p className="login-preview-note">Preview access · Credentials are not checked or saved.</p>
           <button className="login-submit" type="submit"><ArrowRight /> Launch Dashboard</button>
         </form>
         <div className="login-divider"><span>OR</span></div>
         <div className="login-alternatives"><button disabled title="SSO integration is not available yet"><LockKeyhole /> SSO Login</button><button disabled title="MFA integration is not available yet"><ShieldCheck /> Verify with MFA</button></div>
         <p className="login-access-note"><LockKeyhole /> Identity integration pending</p>
-        <a className="login-preview" href="/">Preview the existing dashboard <ArrowRight size={15} /></a>
+        <a className="login-preview" href="/#/dashboard">Open dashboard preview <ArrowRight size={15} /></a>
       </section>
     </div>
     <footer className="login-capabilities">{capabilities.map(([Icon, title, description]) => <div key={title} className="login-capability"><span className="login-capability-icon"><Icon aria-hidden="true" /></span><div><strong>{title}</strong><p>{description}</p></div></div>)}</footer>
