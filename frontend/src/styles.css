@@ -572,3 +572,9 @@ main:after{z-index:-1!important;opacity:.65}
 .soc-shell :is(button,input,textarea,select,a):focus-visible{
   outline:2px solid #46d6f5!important;outline-offset:2px
 }
+
+.soc-shell .api-label,.soc-shell .availability.ready{
+ background:#10392e!important;color:#93f2c2!important;border-color:#2e745b!important
+}
+.soc-shell .availability.pending{color:#ffcf77!important}
+.soc-shell .input-tabs svg,.soc-shell .file-button svg{color:inherit}
