@@ -359,3 +359,7 @@ button,input{font:inherit}
   .mobile-nav-open .exact-nav section>p{font-size:10px!important}
   .mobile-nav-open .exact-nav button{min-height:36px!important;font-size:12px}
 }
+
+/* Overlay workspaces replace the native page visually without unmounting its state. */
+.soc-shell .soc-content.has-module-overlay > .app-shell{display:none!important}
+.soc-shell .soc-content.has-module-overlay{min-height:100vh}
