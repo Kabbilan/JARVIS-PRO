@@ -363,3 +363,71 @@ button,input{font:inherit}
 /* Overlay workspaces replace the native page visually without unmounting its state. */
 .soc-shell .soc-content.has-module-overlay > .app-shell{display:none!important}
 .soc-shell .soc-content.has-module-overlay{min-height:100vh}
+
+/* Dashboard readability: give data enough room before increasing type. */
+.exact-dashboard{max-width:1680px}
+.exact-kpis{gap:14px}
+.kpi{min-height:120px;height:auto}
+.kpi strong{font-size:30px}
+.kpi span{font-size:13px}
+.kpi small{font-size:11px;line-height:1.35}
+.exact-card>header{min-height:52px;height:auto}
+.exact-card>header strong{font-size:14px}
+.exact-card>header button{font-size:11px;min-height:32px;height:auto}
+.map-legend span,.trend-legend span{font-size:10px}
+.map-side{width:184px;padding:12px}
+.map-side>strong{font-size:11px}
+.map-side p{font-size:10px;padding:7px 0}
+.map-side p svg{width:14px}
+.map-badge strong{font-size:11px}
+.map-badge span{font-size:9px}
+.event-head{height:38px;font-size:10px;grid-template-columns:76px minmax(0,1fr) 92px 84px}
+.event-line{min-height:43px;height:auto;grid-template-columns:8px 67px minmax(0,1fr) 92px 84px;gap:4px}
+.event-line>span,.event-line small,.event-line em{font-size:10px}
+.event-line strong{font-size:11px}
+.event-line .severity-pill{font-size:9px;padding:5px 7px}
+.trend-legend{height:32px}
+.trend-bars span{font-size:10px}
+.score-wrap{height:auto;min-height:220px;grid-template-columns:150px 1fr}
+.score-ring{width:132px;height:132px}
+.score-ring>div{width:101px;height:101px}
+.score-ring strong{font-size:27px}
+.score-ring span,.score-ring b{font-size:10px}
+.posture-list p{font-size:11px;padding:8px 0}
+.card-sub,.mitre-bars p{font-size:10px}
+.mitre-bars>div{margin:12px 0}
+.copilot-alert{padding:13px}
+.copilot-alert strong{font-size:11px}
+.copilot-alert span{font-size:10px}
+.copilot-buttons{gap:8px}
+.copilot-buttons button{font-size:10px;min-height:34px;height:auto;padding:5px 10px}
+.copilot-input{min-height:40px;height:auto}
+.copilot-input input{font-size:11px}
+@media(min-width:1301px){
+ .dashboard-main-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px}
+ .global-threat,.live-events-card{height:430px}
+ .map-stage,.exact-event-table{height:378px}
+ .exact-event-table{overflow-y:auto;scrollbar-width:thin}
+ .dashboard-bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+ .dashboard-bottom-grid>.exact-card{height:auto;min-height:300px}
+ .trend-bars{height:206px}
+ .score-wrap{min-height:245px}
+}
+@media(min-width:761px) and (max-width:1300px){
+ .live-events-card{height:410px}
+ .exact-event-table{height:358px;overflow-y:auto}
+ .dashboard-bottom-grid>.exact-card{height:auto;min-height:290px}
+ .trend-bars{height:180px}
+}
+@media(max-width:760px){
+ .exact-card>header strong{font-size:12px}
+ .event-head{min-width:610px;font-size:10px}
+ .event-line{min-width:610px;min-height:42px;grid-template-columns:8px 67px minmax(0,1fr) 92px 84px}
+ .event-line strong{font-size:11px}
+ .event-line>span,.event-line small,.event-line em{font-size:9px}
+ .trend-bars span{font-size:9px}
+ .posture-list p{font-size:10px}
+ .copilot-alert strong{font-size:11px}
+ .copilot-buttons button{font-size:10px}
+ .map-side{display:none!important}
+}
