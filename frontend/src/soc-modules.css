@@ -29,3 +29,38 @@
 .wm-toolbar input,.wm-toolbar select,.wm-search-hero input{font-size:12px}
 .intel-results article strong,.posture-bars p,.wm-action-grid strong,.rules strong,.wm-insight strong{font-size:11px}
 .intel-results article span,.intel-results article small,.intel-results article p,.wm-action-grid span,.rules span,.wm-insight span{font-size:10px!important}
+
+/* Keep long data collections inside their own scrollable workspace. */
+.wm-panel > :is(.wm-rows,.wm-report-list,.wm-insight-list,.wm-entity-grid,
+ .wm-notifications,.wm-action-grid,.wm-source-grid,.intel-results),
+.wm-panel.intel-search > .intel-results{
+ max-height:min(60vh,640px);
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ scrollbar-gutter:stable;
+ scrollbar-width:thin;
+ scrollbar-color:#2b6687 #061726;
+ border:1px solid #1d4159;
+ border-radius:9px;
+ background:#061827;
+ padding:4px 10px;
+}
+.wm-panel > :is(.wm-rows,.wm-report-list,.wm-insight-list,.wm-entity-grid,
+ .wm-notifications,.wm-action-grid,.wm-source-grid,.intel-results)::-webkit-scrollbar{
+ width:8px
+}
+.wm-panel > :is(.wm-rows,.wm-report-list,.wm-insight-list,.wm-entity-grid,
+ .wm-notifications,.wm-action-grid,.wm-source-grid,.intel-results)::-webkit-scrollbar-thumb{
+ background:#2b6687;border-radius:8px
+}
+.wm-panel.compact-list{max-height:min(60vh,640px);overflow-y:auto}
+.wm-panel.compact-list > .wm-rows{
+ max-height:none;overflow:visible;border:0;background:transparent;padding:0
+}
+.wm-report-list,.wm-insight-list{display:flex;flex-direction:column}
+@media(max-width:700px){
+ .wm-panel > :is(.wm-rows,.wm-report-list,.wm-insight-list,.wm-entity-grid,
+  .wm-notifications,.wm-action-grid,.wm-source-grid,.intel-results){
+  max-height:min(56vh,520px);padding:4px 6px;scrollbar-gutter:auto
+ }
+}
