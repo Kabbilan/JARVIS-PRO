@@ -16,3 +16,16 @@
 .wm-notifications{display:flex;flex-direction:column}.wm-notifications>button{display:grid;grid-template-columns:24px 1fr 65px;gap:10px;align-items:center;width:100%;border:0;border-top:1px solid #112a3f;background:transparent;color:#c7d8e5;text-align:left;padding:11px 2px}.wm-notifications>button:hover{background:#091b2a}.wm-notifications>button>svg{width:16px;color:#f0b449}.wm-notifications>button>div{display:flex;flex-direction:column;gap:3px}.wm-notifications strong{font-size:9px}.wm-notifications span{font-size:7px;color:#617e94}
 @media(max-width:900px){.wm-entity-grid,.wm-playbooks{grid-template-columns:1fr}.health-grid{grid-template-columns:1fr}.entity-graph-stage{grid-template-columns:1fr;gap:7px}.graph-links{transform:rotate(90deg);font-size:16px}.rule-fields{grid-template-columns:1fr}}
 @media(max-width:500px){.wm-entity-grid article{grid-template-columns:24px 20px 1fr}.wm-entity-grid article>b{display:none}.wm-playbooks article{grid-template-columns:42px 1fr}.wm-playbooks article button{grid-column:2;justify-self:start}}
+
+/* Readable SOC workspace typography */
+.wm-head p{font-size:11px}
+.wm-head span{font-size:13px}
+.wm-head button{font-size:12px}
+.wm-panel-title strong,.wm-search-hero strong{font-size:13px}
+.wm-panel-title small,.wm-metric>span,.wm-metric small{font-size:10px}
+.wm-row strong,.wm-evidence-grid strong,.wm-tech-grid strong,.wm-timeline div strong{font-size:12px}
+.wm-row small,.wm-detail-head p,.wm-timeline div p,.wm-timeline div small{font-size:10px!important}
+.wm-section-title,.wm-sev,.wm-link-row b,.wm-link-row small{font-size:10px}
+.wm-toolbar input,.wm-toolbar select,.wm-search-hero input{font-size:12px}
+.intel-results article strong,.posture-bars p,.wm-action-grid strong,.rules strong,.wm-insight strong{font-size:11px}
+.intel-results article span,.intel-results article small,.intel-results article p,.wm-action-grid span,.rules span,.wm-insight span{font-size:10px!important}
