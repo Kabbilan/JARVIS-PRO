@@ -432,3 +432,55 @@ button,input{font:inherit}
  .map-side{display:none!important}
 }
 .exact-card > header{margin-bottom:0!important}
+
+/* Topbar notification panel */
+.bell[aria-expanded="true"]{background:#103a57;color:#6bdcff}
+.notification-backdrop{
+ position:fixed;inset:0;z-index:109;border:0;background:transparent;cursor:default
+}
+.notification-popover{
+ position:fixed;top:64px;right:108px;z-index:130;
+ width:min(420px,calc(100vw - 24px));max-height:min(72vh,650px);
+ display:flex;flex-direction:column;overflow:hidden;
+ background:#061b2e;border:1px solid #2b678a;border-radius:12px;
+ box-shadow:0 20px 60px rgba(0,0,0,.5);color:#eaf5fc
+}
+.notification-popover-header{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:15px 16px;border-bottom:1px solid #1e405a
+}
+.notification-popover-header div{display:flex;flex-direction:column;gap:3px}
+.notification-popover-header strong{font-size:15px}
+.notification-popover-header span{font-size:11px;color:#a0bdcf}
+.notification-popover-header button{
+ border:1px solid #2b6d91;background:#0a304a;color:#a7e4ff;
+ border-radius:6px;padding:7px 10px;font-size:11px;cursor:pointer
+}
+.notification-popover-header button:disabled{opacity:.5}
+.notification-popover-list{overflow-y:auto;min-height:70px;scrollbar-width:thin;overscroll-behavior:contain}
+.notification-item{
+ display:grid;grid-template-columns:7px minmax(0,1fr) 16px;align-items:center;
+ gap:10px;width:100%;padding:13px 16px;border:0;border-bottom:1px solid #16364d;
+ background:transparent;text-align:left;color:#eaf5fc;cursor:pointer
+}
+.notification-item:hover{background:#0e3048}
+.notification-item>span:nth-child(2){min-width:0}
+.notification-item strong,.notification-item small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notification-item strong{font-size:12px}
+.notification-item small{margin-top:4px;font-size:10px;color:#9ebcd0}
+.notification-item>svg{width:16px;color:#6bc9ee}
+.notification-mark{width:7px;height:30px;border-radius:6px;background:#ffb74d}
+.notification-mark.critical{background:#ff5b78!important}
+.notification-mark.high{background:#ffb74d!important}
+.notification-message{padding:20px 16px;margin:0;color:#a9c4d4;font-size:12px}
+.notification-all{
+ display:flex;align-items:center;justify-content:center;gap:6px;width:100%;
+ padding:12px;border:0;border-top:1px solid #1e405a;background:#0a2b43;
+ color:#78d8ff;font-size:12px;font-weight:700;cursor:pointer
+}
+.notification-all svg{width:14px}
+.notification-all:hover{background:#10405e}
+.notification-popover :is(button):focus-visible{outline:2px solid #5addff;outline-offset:-2px}
+@media(max-width:760px){
+ .notification-popover{top:62px;right:12px;max-height:70dvh}
+}
